@@ -14,7 +14,10 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryAddUsageDescription": "시뮬레이션에 사용할 사진을 관리하려면 사진 접근이 필요합니다."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -27,6 +30,16 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-router", "expo-font"]
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "벽 사진을 촬영해 시뮬레이션을 시작하려면 카메라 접근이 필요합니다.",
+          "photosPermission": "벽 사진을 불러와 시뮬레이션을 시작하려면 사진 접근이 필요합니다."
+        }
+      ]
+    ]
   }
 }
