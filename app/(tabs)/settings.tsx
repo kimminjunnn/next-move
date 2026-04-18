@@ -1,5 +1,12 @@
 import { useRouter } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "../../src/components/AppHeader";
@@ -27,7 +34,7 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
       <View style={styles.screen}>
-        <AppHeader title="Next Move" />
+        <AppHeader showDivider={false} title="Next Move" />
 
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -36,8 +43,8 @@ export default function SettingsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>내 몸 기준 설정</Text>
             <Text style={styles.sectionBody}>
-              키와 리치를 맞춰두면 시뮬레이션에서 내 동작 범위를 계산하는 기준으로
-              사용합니다.
+              키와 리치를 맞춰두면 시뮬레이션에서 내 동작 범위를 계산하는
+              기준으로 사용합니다.
             </Text>
           </View>
 

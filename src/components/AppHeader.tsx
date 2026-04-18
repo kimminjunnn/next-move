@@ -2,12 +2,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 type AppHeaderProps = {
+  showDivider?: boolean;
   title: string;
 };
 
-export function AppHeader({ title }: AppHeaderProps) {
+export function AppHeader({ title, showDivider = true }: AppHeaderProps) {
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, !showDivider && styles.headerWithoutDivider]}>
       <Pressable
         accessibilityLabel="메뉴"
         onPress={() => Alert.alert("준비 중", "메뉴는 다음 단계에서 연결됩니다.")}
@@ -34,6 +35,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#ebe4d8",
     backgroundColor: "#f8f3eb",
+  },
+  headerWithoutDivider: {
+    borderBottomWidth: 0,
   },
   iconButton: {
     alignItems: "center",
