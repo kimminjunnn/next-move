@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "../../src/components/AppHeader";
 import { BottomTabBar } from "../../src/components/BottomTabBar";
+import { ConfirmModal } from "../../src/components/ConfirmModal";
 import { SimulationBackground } from "../../src/components/SimulationBackground";
 import { useBodyProfileStore } from "../../src/store/useBodyProfileStore";
 
@@ -169,63 +169,18 @@ export default function SettingsScreen() {
 
         <BottomTabBar active="settings" />
 
-        <Modal
-          animationType="fade"
-          presentationStyle="overFullScreen"
-          transparent
-          visible={confirmVisible}
+        <ConfirmModal
+          body="입력한 키와 리치를 내 체형 정보로 저장해요."
+          confirmLabel="저장"
+          onCancel={() => setConfirmVisible(false)}
+          onConfirm={() => {
+            setConfirmVisible(false);
+            router.replace("/(tabs)/simulation");
+          }}
           onRequestClose={() => setConfirmVisible(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <Pressable
-              onPress={() => setConfirmVisible(false)}
-              style={styles.modalBackdrop}
-            />
-
-            <View style={styles.modalCard}>
-              <Text style={styles.modalTitle}>이 정보로 저장할까요?</Text>
-              <Text style={styles.modalBody}>
-                입력한 키와 리치를 내 체형 정보로 저장해요.
-              </Text>
-
-              <View style={styles.modalActionRow}>
-                <Pressable
-                  onPress={() => setConfirmVisible(false)}
-                  style={[
-                    styles.modalActionButton,
-                    styles.modalSecondaryButton,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.modalActionText,
-                      styles.modalSecondaryButtonText,
-                    ]}
-                  >
-                    취소
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={() => {
-                    setConfirmVisible(false);
-                    router.replace("/(tabs)/simulation");
-                  }}
-                  style={[styles.modalActionButton, styles.modalPrimaryButton]}
-                >
-                  <Text
-                    style={[
-                      styles.modalActionText,
-                      styles.modalPrimaryButtonText,
-                    ]}
-                  >
-                    저장
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        </Modal>
+          title="이 정보로 저장할까요?"
+          visible={confirmVisible}
+        />
       </View>
     </SafeAreaView>
   );
@@ -444,78 +399,5 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
     letterSpacing: -0.7,
-  },
-  modalOverlay: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    backgroundColor: "rgba(23, 23, 23, 0.32)",
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  modalCard: {
-    width: "100%",
-    maxWidth: 360,
-    paddingHorizontal: 22,
-    paddingTop: 24,
-    paddingBottom: 20,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: "#e9e2d7",
-    backgroundColor: "#fffaf2",
-    shadowColor: "#9f8f76",
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    elevation: 10,
-  },
-
-  modalTitle: {
-    marginTop: 18,
-    color: "#171717",
-    fontSize: 24,
-    fontWeight: "800",
-    letterSpacing: -0.7,
-  },
-  modalBody: {
-    marginTop: 10,
-    color: "#5a5a5a",
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  modalActionRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 24,
-  },
-  modalActionButton: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 54,
-    borderRadius: 18,
-  },
-  modalSecondaryButton: {
-    borderWidth: 1,
-    borderColor: "#ddd4c5",
-    backgroundColor: "#f8f3eb",
-  },
-  modalPrimaryButton: {
-    backgroundColor: "#8f0000",
-  },
-  modalActionText: {
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  modalSecondaryButtonText: {
-    color: "#4b4b4b",
-  },
-  modalPrimaryButtonText: {
-    color: "#fffdf8",
   },
 });

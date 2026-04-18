@@ -31,6 +31,7 @@ export default function SimulationScreen() {
   const setDraftPhoto = useSimulationStore((state) => state.setDraftPhoto);
   const applyTransform = useSimulationStore((state) => state.applyTransform);
   const cancelDraft = useSimulationStore((state) => state.cancelDraft);
+  const clearPhoto = useSimulationStore((state) => state.clearPhoto);
 
   async function pickPhoto(source: SimulationPhotoSource) {
     try {
@@ -100,6 +101,7 @@ export default function SimulationScreen() {
   if (mode === "canvas" && photo && transform) {
     return (
       <SimulationCanvasStage
+        onClearPhoto={clearPhoto}
         onOpenCamera={() => void pickPhoto("camera")}
         onOpenLibrary={() => void pickPhoto("library")}
         photo={photo}
