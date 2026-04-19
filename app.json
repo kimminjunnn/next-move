@@ -17,7 +17,9 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSPhotoLibraryAddUsageDescription": "시뮬레이션에 사용할 사진을 관리하려면 사진 접근이 필요합니다."
-      }
+      },
+      "bundleIdentifier": "com.balancinglife.next-move",
+      "appleTeamId": "TVQSQG22UY"
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +27,10 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

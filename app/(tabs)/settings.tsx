@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -16,16 +16,21 @@ import { BottomTabBar } from "../../src/components/BottomTabBar";
 import { ConfirmModal } from "../../src/components/ConfirmModal";
 import { SimulationBackground } from "../../src/components/SimulationBackground";
 import { useBodyProfileStore } from "../../src/store/useBodyProfileStore";
+import { deriveWingspan, type WingspanMode } from "../../src/types/bodyProfile";
 
 function toDisplayNumber(value: number) {
   return String(value);
 }
 
-function parsePositiveNumber(value: string, fallback: number) {
+function parsePositiveNumber(value: string) {
+  if (value.trim().length === 0) {
+    return null;
+  }
+
   const parsed = Number(value);
 
   if (Number.isNaN(parsed) || parsed <= 0) {
-    return fallback;
+    return null;
   }
 
   return parsed;
@@ -35,6 +40,100 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { profile, updateProfile } = useBodyProfileStore();
   const [confirmVisible, setConfirmVisible] = useState(false);
+  const [heightError, setHeightError] = useState<string | null>(null);
+  const [wingspanError, setWingspanError] = useState<string | null>(null);
+  const [draftHeight, setDraftHeight] = useState(toDisplayNumber(profile.height));
+  const [draftWingspan, setDraftWingspan] = useState(
+    toDisplayNumber(profile.wingspan),
+  );
+  const [draftWingspanMode, setDraftWingspanMode] =
+    useState<WingspanMode>(profile.wingspanMode);
+
+  useEffect(() => {
+    setDraftHeight(toDisplayNumber(profile.height));
+    setDraftWingspan(toDisplayNumber(profile.wingspan));
+    setDraftWingspanMode(profile.wingspanMode);
+    setHeightError(null);
+    setWingspanError(null);
+  }, [profile.height, profile.wingspan, profile.wingspanMode]);
+
+  function validateDraft() {
+    const nextHeight = parsePositiveNumber(draftHeight);
+    const nextWingspan = parsePositiveNumber(draftWingspan);
+    const nextHeightError =
+      nextHeight === null ? "키는 0보다 큰 숫자로 입력해 주세요." : null;
+    const nextWingspanError =
+      nextWingspan === null ? "리치는 0보다 큰 숫자로 입력해 주세요." : null;
+
+    setHeightError(nextHeightError);
+    setWingspanError(nextWingspanError);
+
+    return {
+      height: nextHeight,
+      heightError: nextHeightError,
+      wingspan: nextWingspan,
+      wingspanError: nextWingspanError,
+    };
+  }
+
+  function handleHeightChange(text: string) {
+    setDraftHeight(text);
+    setHeightError(null);
+
+    if (draftWingspanMode !== "auto") {
+      return;
+    }
+
+    const nextHeight = parsePositiveNumber(text);
+
+    if (nextHeight === null) {
+      return;
+    }
+
+    setDraftWingspan(toDisplayNumber(deriveWingspan(nextHeight)));
+  }
+
+  function handleWingspanChange(text: string) {
+    setDraftWingspan(text);
+    setDraftWingspanMode("custom");
+    setWingspanError(null);
+  }
+
+  function handleRestoreAuto() {
+    const nextHeight = parsePositiveNumber(draftHeight) ?? profile.height;
+    setDraftWingspanMode("auto");
+    setDraftWingspan(toDisplayNumber(deriveWingspan(nextHeight)));
+    setWingspanError(null);
+  }
+
+  function handleOpenConfirm() {
+    const { heightError: nextHeightError, wingspanError: nextWingspanError } =
+      validateDraft();
+
+    if (nextHeightError || nextWingspanError) {
+      setConfirmVisible(false);
+      return;
+    }
+
+    setConfirmVisible(true);
+  }
+
+  function handleConfirmSave() {
+    const { height, heightError: nextHeightError, wingspan, wingspanError: nextWingspanError } =
+      validateDraft();
+
+    if (nextHeightError || nextWingspanError || height === null || wingspan === null) {
+      return;
+    }
+
+    updateProfile({
+      height,
+      wingspan,
+      wingspanMode: draftWingspanMode,
+    });
+    setConfirmVisible(false);
+    router.replace("/(tabs)/simulation");
+  }
 
   return (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
@@ -73,21 +172,25 @@ export default function SettingsScreen() {
               </View>
             </View>
 
-            <View style={styles.inputShell}>
+            <View
+              style={[
+                styles.inputShell,
+                heightError ? styles.inputShellInvalid : null,
+              ]}
+            >
               <TextInput
                 keyboardType="numeric"
-                onChangeText={(text) =>
-                  updateProfile({
-                    height: parsePositiveNumber(text, profile.height),
-                  })
-                }
+                onChangeText={handleHeightChange}
                 style={styles.input}
-                value={toDisplayNumber(profile.height)}
+                value={draftHeight}
               />
               <Text style={styles.inputUnit}>cm</Text>
             </View>
 
             <Text style={styles.helper}>시뮬레이션 거리 계산의 기준값</Text>
+            {heightError ? (
+              <Text style={styles.errorText}>{heightError}</Text>
+            ) : null}
           </View>
 
           <View style={styles.fieldCard}>
@@ -102,7 +205,7 @@ export default function SettingsScreen() {
               <View
                 style={[
                   styles.modeBadge,
-                  profile.wingspanMode === "auto"
+                  draftWingspanMode === "auto"
                     ? styles.modeBadgeAuto
                     : styles.modeBadgeCustom,
                 ]}
@@ -110,26 +213,27 @@ export default function SettingsScreen() {
                 <Text
                   style={[
                     styles.modeBadgeText,
-                    profile.wingspanMode === "auto"
+                    draftWingspanMode === "auto"
                       ? styles.modeBadgeTextAuto
                       : styles.modeBadgeTextCustom,
                   ]}
                 >
-                  {profile.wingspanMode === "auto" ? "자동" : "커스텀"}
+                  {draftWingspanMode === "auto" ? "자동" : "커스텀"}
                 </Text>
               </View>
             </View>
 
-            <View style={styles.inputShell}>
+            <View
+              style={[
+                styles.inputShell,
+                wingspanError ? styles.inputShellInvalid : null,
+              ]}
+            >
               <TextInput
                 keyboardType="numeric"
-                onChangeText={(text) =>
-                  updateProfile({
-                    wingspan: parsePositiveNumber(text, profile.wingspan),
-                  })
-                }
+                onChangeText={handleWingspanChange}
                 style={styles.input}
-                value={toDisplayNumber(profile.wingspan)}
+                value={draftWingspan}
               />
               <Text style={styles.inputUnit}>cm</Text>
             </View>
@@ -137,28 +241,31 @@ export default function SettingsScreen() {
             <View style={styles.fieldFooterRow}>
               <Text style={styles.helper}>
                 현재 모드:{" "}
-                {profile.wingspanMode === "auto" ? "자동 계산" : "직접 입력"}
+                {draftWingspanMode === "auto" ? "자동 계산" : "직접 입력"}
               </Text>
 
               <Pressable
-                onPress={() => updateProfile({ wingspanMode: "auto" })}
+                onPress={handleRestoreAuto}
                 style={styles.inlineAction}
               >
                 <Ionicons color="#8f0000" name="refresh" size={14} />
                 <Text style={styles.inlineActionText}>자동 계산 복원</Text>
               </Pressable>
             </View>
+            {wingspanError ? (
+              <Text style={styles.errorText}>{wingspanError}</Text>
+            ) : null}
           </View>
 
           <View style={styles.footerCard}>
             <View style={styles.footerCopy}>
               <Text style={styles.footerBody}>
-                입력한 기준이 시뮬레이션 화면에 바로 반영돼요.
+                저장한 기준이 시뮬레이션 화면에 반영돼요.
               </Text>
             </View>
 
             <Pressable
-              onPress={() => setConfirmVisible(true)}
+              onPress={handleOpenConfirm}
               style={styles.confirmButton}
             >
               <Text style={styles.confirmButtonText}>확인</Text>
@@ -173,10 +280,7 @@ export default function SettingsScreen() {
           body="입력한 키와 리치를 내 체형 정보로 저장해요."
           confirmLabel="저장"
           onCancel={() => setConfirmVisible(false)}
-          onConfirm={() => {
-            setConfirmVisible(false);
-            router.replace("/(tabs)/simulation");
-          }}
+          onConfirm={handleConfirmSave}
           onRequestClose={() => setConfirmVisible(false)}
           title="이 정보로 저장할까요?"
           visible={confirmVisible}
@@ -321,6 +425,10 @@ const styles = StyleSheet.create({
     borderColor: "#ddd4c5",
     backgroundColor: "#f8f3eb",
   },
+  inputShellInvalid: {
+    borderColor: "#c8524d",
+    backgroundColor: "#fff5f3",
+  },
   input: {
     flex: 1,
     color: "#161616",
@@ -337,6 +445,12 @@ const styles = StyleSheet.create({
     flex: 1,
     color: "#6b6b6b",
     fontSize: 13,
+    lineHeight: 19,
+  },
+  errorText: {
+    color: "#b33a35",
+    fontSize: 13,
+    fontWeight: "700",
     lineHeight: 19,
   },
   fieldFooterRow: {
