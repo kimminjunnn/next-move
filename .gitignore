@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# local service artifacts
+nest-api/uploads/
+vision-service/app/__pycache__/
