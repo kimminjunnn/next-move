@@ -27,6 +27,7 @@ import { AppHeader } from "./AppHeader";
 import { BottomTabBar } from "./BottomTabBar";
 import { ConfirmModal } from "./ConfirmModal";
 import { RouteHighlightOverlay } from "./RouteHighlightOverlay";
+import { SkeletonPoseOverlay } from "./SkeletonPoseOverlay";
 import { SimulationPhotoViewport } from "./SimulationPhotoViewport";
 
 type SimulationCanvasStageProps = {
@@ -279,6 +280,13 @@ export function SimulationCanvasStage({
               </View>
             </View>
           </Pressable>
+
+          {viewport.width > 0 && viewport.height > 0 ? (
+            <SkeletonPoseOverlay
+              viewportHeight={viewport.height}
+              viewportWidth={viewport.width}
+            />
+          ) : null}
 
           <View style={styles.canvasTopOverlay}>
             <Pressable onPress={onOpenCamera} style={styles.overlayIconButton}>
