@@ -77,6 +77,35 @@ class RoboflowDetectionTests(unittest.TestCase):
         self.assertEqual(result.objects[0].kind, "volume")
         self.assertEqual(result.objects[0].bbox.model_dump(), {"x": 40, "y": 40, "width": 20, "height": 20})
 
+    def test_ignores_chalk_when_estimating_hold_color(self):
+        image = np.zeros((60, 60, 3), dtype=np.uint8)
+        image[:] = (10, 10, 10)
+        image[10:50, 10:50] = (20, 30, 210)
+        image[10:26, 10:50] = (232, 232, 232)
+        image[42:50, 10:50] = (7, 10, 72)
+        payload = {
+            "predictions": [
+                {
+                    "class": "hold",
+                    "confidence": 0.91,
+                    "points": [
+                        {"x": 10, "y": 10},
+                        {"x": 50, "y": 10},
+                        {"x": 50, "y": 50},
+                        {"x": 10, "y": 50},
+                    ],
+                }
+            ]
+        }
+
+        result = roboflow_predictions_to_response(
+            image=image,
+            payload=payload,
+            confidence_threshold=0.5,
+        )
+
+        self.assertEqual(result.objects[0].color.hex, "#d21e14")
+
 
 if __name__ == "__main__":
     unittest.main()
