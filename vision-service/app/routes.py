@@ -1,6 +1,12 @@
 from fastapi import APIRouter, HTTPException
 
-from app.fixtures import build_analyze_response, build_route_response
+from app.image_loader import load_image
+from app.roboflow_detection import (
+    RoboflowConfigError,
+    RoboflowRequestError,
+    infer_wall_objects_with_roboflow,
+)
+from app.route_helper import build_route_response
 from app.schemas import (
     AnalyzeWallRequest,
     AnalyzeWallResponse,
@@ -12,8 +18,23 @@ router = APIRouter()
 
 
 @router.post("/internal/analyze-wall", response_model=AnalyzeWallResponse)
-def analyze_wall(_: AnalyzeWallRequest):
-    return build_analyze_response()
+def analyze_wall(payload: AnalyzeWallRequest):
+    try:
+        image = load_image(payload)
+        result = infer_wall_objects_with_roboflow(image)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    except RoboflowConfigError as error:
+        raise HTTPException(status_code=500, detail=str(error))
+    except RoboflowRequestError:
+        raise HTTPException(status_code=502, detail="roboflow_request_failed")
+    except Exception:
+        raise HTTPException(status_code=500, detail="analyze_wall_failed")
+
+    if len(result.objects) == 0:
+        raise HTTPException(status_code=422, detail="no_objects_detected")
+
+    return result
 
 
 @router.post("/internal/select-route", response_model=SelectRouteResponse)
