@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   LayoutChangeEvent,
   Pressable,
   StyleSheet,
@@ -14,7 +15,10 @@ import {
   createWallAnalysis,
   selectDetectedRoute,
 } from "../lib/routeDetectionApi";
-import { viewportPointToAnalysisPoint } from "../lib/simulationViewport";
+import {
+  analysisPointToViewportPoint,
+  viewportPointToAnalysisPoint,
+} from "../lib/simulationViewport";
 import type {
   RouteSelectionResult,
   SimulationDetectedObject,
@@ -38,6 +42,13 @@ type SimulationCanvasStageProps = {
   onOpenLibrary: () => void;
 };
 
+type CanvasFlowStep =
+  | "analyzingHolds"
+  | "selectingStartHold"
+  | "selectingRoute"
+  | "calibratingSkeleton"
+  | "simulating";
+
 export function SimulationCanvasStage({
   photo,
   transform,
@@ -56,8 +67,14 @@ export function SimulationCanvasStage({
     string | null
   >(null);
   const [highlightError, setHighlightError] = useState<string | null>(null);
-  const [isAnalyzingWall, setIsAnalyzingWall] = useState(false);
-  const [isSelectingRoute, setIsSelectingRoute] = useState(false);
+  const [flowStep, setFlowStep] = useState<CanvasFlowStep>("analyzingHolds");
+  const [skeletonScale, setSkeletonScale] = useState(0);
+  const [resetSkeletonPose, setResetSkeletonPose] = useState<(() => void) | null>(
+    null,
+  );
+  const simulationCueOpacity = useRef(new Animated.Value(0)).current;
+  const simulationCueTranslateY = useRef(new Animated.Value(18)).current;
+  const simulationCueScale = useRef(new Animated.Value(0.92)).current;
 
   function handleViewportLayout(event: LayoutChangeEvent) {
     const { width, height } = event.nativeEvent.layout;
@@ -71,8 +88,7 @@ export function SimulationCanvasStage({
     setRouteResult(null);
     setSelectedStartHoldObjectId(null);
     setHighlightError(null);
-    setIsAnalyzingWall(true);
-    setIsSelectingRoute(false);
+    setFlowStep("analyzingHolds");
 
     void createWallAnalysis(photo)
       .then((result) => {
@@ -86,7 +102,11 @@ export function SimulationCanvasStage({
           setHighlightError(
             "홀드와 볼륨을 찾지 못했어요. 다른 사진으로 다시 시도해보세요.",
           );
+          setFlowStep("selectingStartHold");
+          return;
         }
+
+        setFlowStep("selectingStartHold");
       })
       .catch((error: unknown) => {
         if (!isMounted) {
@@ -98,17 +118,78 @@ export function SimulationCanvasStage({
             ? error.message
             : "벽 분석에 실패했어요. 서버 연결을 확인해보세요.",
         );
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsAnalyzingWall(false);
-        }
+        setFlowStep("selectingStartHold");
       });
 
     return () => {
       isMounted = false;
     };
   }, [photo]);
+
+  useEffect(() => {
+    simulationCueOpacity.stopAnimation();
+    simulationCueTranslateY.stopAnimation();
+    simulationCueScale.stopAnimation();
+
+    if (flowStep !== "simulating") {
+      simulationCueOpacity.setValue(0);
+      simulationCueTranslateY.setValue(18);
+      simulationCueScale.setValue(0.92);
+      return;
+    }
+
+    simulationCueOpacity.setValue(0);
+    simulationCueTranslateY.setValue(18);
+    simulationCueScale.setValue(0.92);
+
+    const cueAnimation = Animated.sequence([
+      Animated.parallel([
+        Animated.timing(simulationCueOpacity, {
+          duration: 160,
+          toValue: 1,
+          useNativeDriver: true,
+        }),
+        Animated.timing(simulationCueTranslateY, {
+          duration: 160,
+          toValue: 0,
+          useNativeDriver: true,
+        }),
+        Animated.timing(simulationCueScale, {
+          duration: 160,
+          toValue: 1,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.delay(760),
+      Animated.parallel([
+        Animated.timing(simulationCueOpacity, {
+          duration: 520,
+          toValue: 0,
+          useNativeDriver: true,
+        }),
+        Animated.timing(simulationCueTranslateY, {
+          duration: 520,
+          toValue: -18,
+          useNativeDriver: true,
+        }),
+        Animated.timing(simulationCueScale, {
+          duration: 520,
+          toValue: 1.28,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]);
+    cueAnimation.start();
+
+    return () => {
+      cueAnimation.stop();
+    };
+  }, [
+    flowStep,
+    simulationCueOpacity,
+    simulationCueScale,
+    simulationCueTranslateY,
+  ]);
 
   function getDistanceSquared(a: SimulationPoint, b: SimulationPoint) {
     const x = a.x - b.x;
@@ -174,8 +255,7 @@ export function SimulationCanvasStage({
     if (
       viewport.width <= 0 ||
       viewport.height <= 0 ||
-      isAnalyzingWall ||
-      isSelectingRoute ||
+      flowStep !== "selectingStartHold" ||
       !analysisResult
     ) {
       return;
@@ -201,7 +281,8 @@ export function SimulationCanvasStage({
 
     setSelectedStartHoldObjectId(startHoldObject.id);
     setHighlightError(null);
-    setIsSelectingRoute(true);
+    setRouteResult(null);
+    setFlowStep("selectingRoute");
 
     try {
       const result = await selectDetectedRoute({
@@ -209,31 +290,126 @@ export function SimulationCanvasStage({
         startHoldObjectId: startHoldObject.id,
       });
 
-      setRouteResult(result);
-
       if (result.includedObjectIds.length === 0) {
+        setRouteResult(null);
         setHighlightError(
-          "같은 색 route를 찾지 못했어요. 다른 홀드를 탭해보세요.",
+          "같은 색 루트를 찾지 못했어요. 다른 홀드를 탭해보세요.",
         );
+        setFlowStep("selectingStartHold");
+        return;
       }
+
+      setRouteResult(result);
+      setFlowStep("calibratingSkeleton");
     } catch {
       setRouteResult(null);
       setHighlightError("루트 선택에 실패했어요. 다시 탭해보세요.");
-    } finally {
-      setIsSelectingRoute(false);
+      setFlowStep("selectingStartHold");
     }
   }
+
+  function handleReselectRoute() {
+    setRouteResult(null);
+    setSelectedStartHoldObjectId(null);
+    setHighlightError(null);
+    setFlowStep("selectingStartHold");
+  }
+
+  function formatSkeletonScale(scale: number) {
+    if (scale <= 0) {
+      return "--";
+    }
+
+    return `${Math.round(scale * 100)}%`;
+  }
+
+  const handleCalibrationControlsChange = useCallback(
+    (controls: { resetPose: () => void; scale: number }) => {
+      setSkeletonScale((currentScale) =>
+        currentScale === controls.scale ? currentScale : controls.scale,
+      );
+      setResetSkeletonPose(() => controls.resetPose);
+    },
+    [],
+  );
 
   const holdCount = analysisResult
     ? analysisResult.objects.filter((object) => object.kind === "hold").length
     : 0;
   const overlayObjects =
-    analysisResult && routeResult === null
+    analysisResult && routeResult
+      ? analysisResult.objects.filter((object) =>
+          routeResult.includedObjectIds.includes(object.id),
+        )
+      : analysisResult
       ? analysisResult.objects.filter((object) => object.kind === "hold")
-      : analysisResult?.objects ?? [];
+      : [];
   const overlayDisplayMode = routeResult ? "route" : "all-holds";
+  const selectedStartHoldObject =
+    analysisResult && selectedStartHoldObjectId
+      ? analysisResult.objects.find(
+          (object) => object.id === selectedStartHoldObjectId,
+        )
+      : null;
+  const selectedStartHoldViewportCenter =
+    analysisResult && selectedStartHoldObject
+      ? analysisPointToViewportPoint(
+          selectedStartHoldObject.center,
+          analysisResult.image,
+          photo,
+          transform,
+          viewport.width,
+          viewport.height,
+        )
+      : null;
+  const skeletonInitialCenter =
+    selectedStartHoldViewportCenter &&
+    viewport.width > 0 &&
+    viewport.height > 0
+      ? {
+          x: Math.min(
+            Math.max(selectedStartHoldViewportCenter.x, 36),
+            viewport.width - 36,
+          ),
+          y: Math.min(
+            Math.max(
+              selectedStartHoldViewportCenter.y + viewport.height * 0.16,
+              90,
+            ),
+            viewport.height - 150,
+          ),
+        }
+      : undefined;
+  const isAnalyzingHolds = flowStep === "analyzingHolds";
+  const isSelectingRoute = flowStep === "selectingRoute";
   const shouldShowSkeletonOverlay =
-    !isAnalyzingWall && analysisResult !== null && holdCount > 0;
+    flowStep === "calibratingSkeleton" || flowStep === "simulating";
+  const shouldShowInfoCard = flowStep !== "simulating";
+
+  const infoTitle = (() => {
+    switch (flowStep) {
+      case "analyzingHolds":
+        return "홀드 테두리를 찾는 중";
+      case "selectingStartHold":
+        if (!analysisResult) {
+          return "분석 결과를 불러오지 못했어요";
+        }
+        if (holdCount === 0) {
+          return "인식된 홀드가 없어요";
+        }
+        return "스타트 홀드를 탭하세요";
+      case "selectingRoute":
+        return "같은 색 루트를 찾는 중";
+      case "calibratingSkeleton":
+        return "스켈레톤 크기와 위치를 맞춰주세요";
+      case "simulating":
+        return "손과 발을 움직여 다음 동작을 확인하세요";
+    }
+  })();
+
+  const loadingText = isAnalyzingHolds
+    ? "벽 사진을 분석하고 있어요"
+    : "같은 색 홀드를 묶고 있어요";
 
   return (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
@@ -264,61 +440,139 @@ export function SimulationCanvasStage({
             />
           ) : null}
 
-          <Pressable
-            onPress={(event) =>
-              void handleCanvasPress({
-                x: event.nativeEvent.locationX,
-                y: event.nativeEvent.locationY,
-              })
-            }
-            style={styles.touchLayer}
-          >
-            <View style={styles.infoOverlay}>
+          {flowStep === "selectingStartHold" ||
+          flowStep === "selectingRoute" ||
+          flowStep === "analyzingHolds" ? (
+            <Pressable
+              onPress={(event) =>
+                void handleCanvasPress({
+                  x: event.nativeEvent.locationX,
+                  y: event.nativeEvent.locationY,
+                })
+              }
+              style={styles.touchLayer}
+            >
+              {shouldShowInfoCard ? (
+                <View style={styles.infoOverlay}>
+                  <View style={styles.infoCard}>
+                    <View style={styles.infoHeaderRow}>
+                      <Text style={styles.infoEyebrow}>ROUTE DETECTION</Text>
+                      {!isAnalyzingHolds && analysisResult ? (
+                        <View style={styles.statusChip}>
+                          <Text style={styles.statusChipText}>
+                            {routeResult
+                              ? `${routeResult.includedObjectIds.length} route`
+                              : `${holdCount} holds`}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <Text style={styles.infoTitle}>{infoTitle}</Text>
+
+                    {isAnalyzingHolds || isSelectingRoute ? (
+                      <View style={styles.loadingRow}>
+                        <ActivityIndicator color="#ffb37a" size="small" />
+                        <Text style={styles.loadingText}>{loadingText}</Text>
+                      </View>
+                    ) : null}
+
+                    {highlightError ? (
+                      <Text style={styles.errorText}>{highlightError}</Text>
+                    ) : null}
+                  </View>
+                </View>
+              ) : null}
+            </Pressable>
+          ) : null}
+
+          {flowStep === "calibratingSkeleton" ? (
+            <View pointerEvents="box-none" style={styles.infoOverlay}>
               <View style={styles.infoCard}>
                 <View style={styles.infoHeaderRow}>
-                  <Text style={styles.infoEyebrow}>ROUTE DETECTION</Text>
-                  {!isAnalyzingWall && analysisResult ? (
-                    <View style={styles.statusChip}>
-                      <Text style={styles.statusChipText}>
-                        {routeResult
-                          ? `${routeResult.includedObjectIds.length} selected`
-                          : `${holdCount} holds`}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-                <Text style={styles.infoTitle}>
-                  {isAnalyzingWall
-                    ? "홀드 border를 찾는 중"
-                    : isSelectingRoute
-                      ? "같은 색 route를 찾는 중"
-                      : routeResult
-                        ? "다른 스타트 홀드를 탭해 다시 선택"
-                        : "모든 홀드를 표시했어요. 스타트 홀드를 탭하세요"}
-                </Text>
-
-                {isAnalyzingWall || isSelectingRoute ? (
-                  <View style={styles.loadingRow}>
-                    <ActivityIndicator color="#ffb37a" size="small" />
-                    <Text style={styles.loadingText}>
-                      {isAnalyzingWall
-                        ? "wall analysis 요청 중"
-                        : "route selection 요청 중"}
+                  <Text style={styles.infoEyebrow}>SKELETON FIT</Text>
+                  <View style={styles.statusChip}>
+                    <Text style={styles.statusChipText}>
+                      {routeResult
+                        ? `${routeResult.includedObjectIds.length} route`
+                        : `${holdCount} holds`}
                     </Text>
                   </View>
-                ) : null}
+                </View>
+                <Text style={styles.infoTitle}>{infoTitle}</Text>
 
-                {highlightError ? (
-                  <Text style={styles.errorText}>{highlightError}</Text>
-                ) : null}
+                <View style={styles.calibrationHintRow}>
+                  <Text style={styles.calibrationHint}>
+                    두 손가락으로 크기를 조절하세요
+                  </Text>
+                  <Text style={styles.calibrationScale}>
+                    {formatSkeletonScale(skeletonScale)}
+                  </Text>
+                </View>
+
+                <View style={styles.calibrationActionRow}>
+                  <Pressable
+                    onPress={() => resetSkeletonPose?.()}
+                    style={({ pressed }) => [
+                      styles.calibrationIconButton,
+                      pressed ? styles.reselectButtonPressed : null,
+                    ]}
+                  >
+                    <Ionicons color="#ffffff" name="refresh" size={16} />
+                  </Pressable>
+
+                  <Pressable
+                    onPress={handleReselectRoute}
+                    style={({ pressed }) => [
+                      styles.reselectButton,
+                      styles.calibrationTextButton,
+                      pressed ? styles.reselectButtonPressed : null,
+                    ]}
+                  >
+                    <Text style={styles.reselectButtonText}>
+                      루트 다시 선택
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => setFlowStep("simulating")}
+                    style={({ pressed }) => [
+                      styles.calibrationConfirmButton,
+                      pressed ? styles.calibrationConfirmButtonPressed : null,
+                    ]}
+                  >
+                    <Text style={styles.calibrationConfirmButtonText}>완료</Text>
+                  </Pressable>
+                </View>
               </View>
             </View>
-          </Pressable>
+          ) : null}
+
+          {flowStep === "simulating" ? (
+            <View pointerEvents="box-none" style={styles.reselectOverlay}>
+              <Pressable
+                onPress={handleReselectRoute}
+                style={({ pressed }) => [
+                  styles.reselectButton,
+                  styles.reselectButtonFloating,
+                  pressed ? styles.reselectButtonPressed : null,
+                ]}
+              >
+                <Text style={styles.reselectButtonText}>루트 다시 선택</Text>
+              </Pressable>
+            </View>
+          ) : null}
 
           {shouldShowSkeletonOverlay &&
           viewport.width > 0 &&
           viewport.height > 0 ? (
             <SkeletonPoseOverlay
+              initialCenter={skeletonInitialCenter}
+              mode={
+                flowStep === "calibratingSkeleton"
+                  ? "calibrating"
+                  : "simulating"
+              }
+              onCalibrationControlsChange={handleCalibrationControlsChange}
               viewportHeight={viewport.height}
               viewportWidth={viewport.width}
             />
@@ -340,6 +594,29 @@ export function SimulationCanvasStage({
               <Ionicons color="#ffffff" name="trash-outline" size={20} />
             </Pressable>
           </View>
+
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.simulationCue,
+              {
+                opacity: simulationCueOpacity,
+                transform: [
+                  { translateY: simulationCueTranslateY },
+                  { scale: simulationCueScale },
+                ],
+              },
+            ]}
+          >
+            <Text
+              adjustsFontSizeToFit
+              minimumFontScale={0.72}
+              numberOfLines={1}
+              style={styles.simulationCueText}
+            >
+              이제 다음 무브를 확인해보세요!
+            </Text>
+          </Animated.View>
         </View>
 
         <BottomTabBar active="simulation" />
@@ -389,7 +666,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 14,
     right: 14,
-    bottom: 14,
+    top: 68,
   },
   infoCard: {
     alignSelf: "stretch",
@@ -444,6 +721,101 @@ const styles = StyleSheet.create({
     color: "#ff9b8d",
     fontSize: 12,
     lineHeight: 16,
+  },
+  reselectButton: {
+    alignSelf: "flex-start",
+    marginTop: 10,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
+  reselectButtonPressed: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  reselectButtonText: {
+    color: "#ffddb7",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  calibrationHintRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  calibrationHint: {
+    flex: 1,
+    color: "#ffddb7",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  calibrationScale: {
+    minWidth: 44,
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "900",
+    textAlign: "right",
+  },
+  calibrationActionRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  calibrationIconButton: {
+    width: 31,
+    height: 31,
+    borderRadius: 15.5,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
+  calibrationTextButton: {
+    marginTop: 0,
+  },
+  calibrationConfirmButton: {
+    height: 31,
+    minWidth: 56,
+    borderRadius: 15.5,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 13,
+    backgroundColor: "#ffb37a",
+  },
+  calibrationConfirmButtonPressed: {
+    backgroundColor: "#ffc999",
+  },
+  calibrationConfirmButtonText: {
+    color: "#171717",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  reselectOverlay: {
+    position: "absolute",
+    top: 68,
+    left: 14,
+  },
+  reselectButtonFloating: {
+    marginTop: 0,
+    backgroundColor: "rgba(10,10,10,0.48)",
+  },
+  simulationCue: {
+    position: "absolute",
+    top: 92,
+    left: 10,
+    right: 10,
+    alignItems: "center",
+  },
+  simulationCueText: {
+    color: "#ffffff",
+    fontSize: 17,
+    fontWeight: "900",
+    textAlign: "center",
+    textShadowColor: "rgba(0,0,0,0.72)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 10,
   },
   overlayIconButton: {
     width: 42,

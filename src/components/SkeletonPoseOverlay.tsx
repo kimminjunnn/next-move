@@ -1,10 +1,7 @@
-import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   PanResponder,
-  Pressable,
   StyleSheet,
-  Text,
   View,
   type GestureResponderEvent,
   type PanResponderGestureState,
@@ -15,9 +12,6 @@ import {
   clampSkeletonScale,
   createSkeletonBodyModel,
   DEFAULT_SKELETON_SCALE,
-  MAX_SKELETON_SCALE,
-  MIN_SKELETON_SCALE,
-  SKELETON_SCALE_STEP,
 } from "../lib/bodyModel";
 import {
   createDefaultSkeletonPose,
@@ -39,6 +33,12 @@ import type {
 } from "../types/skeletonPose";
 
 type SkeletonPoseOverlayProps = {
+  initialCenter?: SimulationPoint;
+  mode: "calibrating" | "simulating";
+  onCalibrationControlsChange?: (controls: {
+    resetPose: () => void;
+    scale: number;
+  }) => void;
   viewportHeight: number;
   viewportWidth: number;
 };
@@ -91,10 +91,6 @@ type HitFrame = {
   left: number;
   top: number;
 };
-
-function formatScale(scale: number) {
-  return `${Math.round(scale * 100)}%`;
-}
 
 function clampNumber(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -161,12 +157,41 @@ function getDistanceSquared(a: SimulationPoint, b: SimulationPoint) {
   return dx * dx + dy * dy;
 }
 
+function getPinchDistance(event: GestureResponderEvent) {
+  const [firstTouch, secondTouch] = event.nativeEvent.touches;
+
+  if (!firstTouch || !secondTouch) {
+    return null;
+  }
+
+  return Math.hypot(
+    firstTouch.pageX - secondTouch.pageX,
+    firstTouch.pageY - secondTouch.pageY,
+  );
+}
+
 function createDefaultPose(
   bodyModel: SkeletonBodyModel,
   viewportWidth: number,
   viewportHeight: number,
+  initialCenter?: SimulationPoint,
 ) {
-  return createDefaultSkeletonPose(bodyModel, viewportWidth, viewportHeight);
+  const defaultPose = createDefaultSkeletonPose(
+    bodyModel,
+    viewportWidth,
+    viewportHeight,
+  );
+
+  if (!initialCenter) {
+    return defaultPose;
+  }
+
+  const center = getSkeletonCenter(defaultPose);
+
+  return translateSkeletonPose(defaultPose, {
+    x: initialCenter.x - center.x,
+    y: initialCenter.y - center.y,
+  });
 }
 
 function scalePoseAroundCenter(
@@ -189,10 +214,15 @@ function scalePoseAroundCenter(
 }
 
 export function SkeletonPoseOverlay({
+  initialCenter,
+  mode,
+  onCalibrationControlsChange,
   viewportHeight,
   viewportWidth,
 }: SkeletonPoseOverlayProps) {
   const { profile } = useBodyProfileStore();
+  const initialCenterX = initialCenter?.x;
+  const initialCenterY = initialCenter?.y;
   const [scale, setScale] = useState(DEFAULT_SKELETON_SCALE);
   const metrics = useMemo(() => getOverlayMetrics(scale), [scale]);
   const bodyModel = useMemo(
@@ -200,19 +230,36 @@ export function SkeletonPoseOverlay({
     [profile, scale],
   );
   const [pose, setPose] = useState<SkeletonPose>(() =>
-    createDefaultPose(bodyModel, viewportWidth, viewportHeight),
+    createDefaultPose(bodyModel, viewportWidth, viewportHeight, initialCenter),
   );
   const [activeControlId, setActiveControlId] = useState<string | null>(null);
   const activeDragTargetRef = useRef<SkeletonDragTarget | null>(null);
   const dragStartPointRef = useRef<SimulationPoint | null>(null);
   const dragStartPoseRef = useRef<SkeletonPose | null>(null);
   const bodyModelRef = useRef(bodyModel);
+  const modeRef = useRef(mode);
+  const profileRef = useRef(profile);
   const poseRef = useRef(pose);
+  const scaleRef = useRef(scale);
+  const pinchStartDistanceRef = useRef<number | null>(null);
+  const pinchStartScaleRef = useRef(scale);
   const hitFramesRef = useRef<Record<string, HitFrame>>({});
+
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
 
   useEffect(() => {
     bodyModelRef.current = bodyModel;
   }, [bodyModel]);
+
+  useEffect(() => {
+    scaleRef.current = scale;
+  }, [scale]);
 
   useEffect(() => {
     poseRef.current = pose;
@@ -223,11 +270,14 @@ export function SkeletonPoseOverlay({
       bodyModel,
       viewportWidth,
       viewportHeight,
+      initialCenterX !== undefined && initialCenterY !== undefined
+        ? { x: initialCenterX, y: initialCenterY }
+        : undefined,
     );
 
     poseRef.current = defaultPose;
     setPose(defaultPose);
-  }, [profile, viewportHeight, viewportWidth]);
+  }, [initialCenterX, initialCenterY, profile, viewportHeight, viewportWidth]);
 
   function setActiveDragTarget(target: SkeletonDragTarget | null) {
     activeDragTargetRef.current = target;
@@ -253,6 +303,33 @@ export function SkeletonPoseOverlay({
     dragStartPointRef.current = null;
     dragStartPoseRef.current = poseRef.current;
     setActiveDragTarget({ kind: "body" });
+  }
+
+  function scaleSkeletonTo(nextScale: number) {
+    setScale((currentScale) => {
+      const clampedScale = clampSkeletonScale(nextScale);
+
+      if (clampedScale === currentScale) {
+        return currentScale;
+      }
+
+      const scaleRatio = clampedScale / currentScale;
+      const nextBodyModel = createSkeletonBodyModel(
+        profileRef.current,
+        clampedScale,
+      );
+      bodyModelRef.current = nextBodyModel;
+      scaleRef.current = clampedScale;
+
+      setPose((currentPose) => {
+        const nextPose = scalePoseAroundCenter(currentPose, scaleRatio);
+
+        poseRef.current = nextPose;
+        return nextPose;
+      });
+
+      return clampedScale;
+    });
   }
 
   function findNearestDragTarget(point: SimulationPoint) {
@@ -407,6 +484,47 @@ export function SkeletonPoseOverlay({
     setActiveDragTarget(null);
   }
 
+  function beginPinchScale(event: GestureResponderEvent) {
+    const distance = getPinchDistance(event);
+
+    if (modeRef.current !== "calibrating" || distance === null) {
+      return;
+    }
+
+    pinchStartDistanceRef.current = distance;
+    pinchStartScaleRef.current = scaleRef.current;
+    dragStartPointRef.current = null;
+    dragStartPoseRef.current = null;
+    setActiveDragTarget(null);
+  }
+
+  function movePinchScale(event: GestureResponderEvent) {
+    const distance = getPinchDistance(event);
+    const startDistance = pinchStartDistanceRef.current;
+
+    if (
+      modeRef.current !== "calibrating" ||
+      distance === null ||
+      startDistance === null ||
+      startDistance <= 0
+    ) {
+      return;
+    }
+
+    scaleSkeletonTo(pinchStartScaleRef.current * (distance / startDistance));
+  }
+
+  function endPinchScale() {
+    pinchStartDistanceRef.current = null;
+    pinchStartScaleRef.current = scaleRef.current;
+  }
+
+  function shouldHandlePinch(event: GestureResponderEvent) {
+    return (
+      modeRef.current === "calibrating" && event.nativeEvent.touches.length >= 2
+    );
+  }
+
   const endpointResponders = useMemo(
     () =>
       ENDPOINTS.reduce(
@@ -479,43 +597,50 @@ export function SkeletonPoseOverlay({
     [],
   );
 
-  function resetPose() {
+  const pinchResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponderCapture: shouldHandlePinch,
+        onMoveShouldSetPanResponderCapture: shouldHandlePinch,
+        onPanResponderGrant: beginPinchScale,
+        onPanResponderMove: movePinchScale,
+        onPanResponderRelease: endPinchScale,
+        onPanResponderTerminate: endPinchScale,
+      }),
+    [],
+  );
+
+  const resetPose = useCallback(() => {
     const defaultPose = createDefaultPose(
       bodyModel,
       viewportWidth,
       viewportHeight,
+      initialCenterX !== undefined && initialCenterY !== undefined
+        ? { x: initialCenterX, y: initialCenterY }
+        : undefined,
     );
 
     poseRef.current = defaultPose;
     setPose(defaultPose);
-  }
+  }, [bodyModel, initialCenterX, initialCenterY, viewportHeight, viewportWidth]);
 
-  function nudgeScale(direction: 1 | -1) {
-    setScale((currentScale) => {
-      const nextScale = clampSkeletonScale(
-        currentScale + SKELETON_SCALE_STEP * direction,
-      );
+  useEffect(() => {
+    if (mode !== "calibrating") {
+      return;
+    }
 
-      if (nextScale === currentScale) {
-        return currentScale;
-      }
-
-      const scaleRatio = nextScale / currentScale;
-      bodyModelRef.current = createSkeletonBodyModel(profile, nextScale);
-
-      setPose((currentPose) => {
-        const nextPose = scalePoseAroundCenter(currentPose, scaleRatio);
-
-        poseRef.current = nextPose;
-        return nextPose;
-      });
-
-      return nextScale;
+    onCalibrationControlsChange?.({
+      resetPose,
+      scale,
     });
-  }
+  }, [mode, onCalibrationControlsChange, resetPose, scale]);
 
   return (
-    <View pointerEvents="box-none" style={styles.overlay}>
+    <View
+      {...pinchResponder.panHandlers}
+      pointerEvents="box-none"
+      style={styles.overlay}
+    >
       <View pointerEvents="none" style={styles.skeletonLayer}>
         <Svg height="100%" width="100%">
           {BONES.map(([from, to]) => (
@@ -684,46 +809,6 @@ export function SkeletonPoseOverlay({
         );
       })}
 
-      <View style={styles.controls}>
-        <Pressable
-          accessibilityLabel="스켈레톤 축소"
-          disabled={scale <= MIN_SKELETON_SCALE}
-          onPress={() => nudgeScale(-1)}
-          style={({ pressed }) => [
-            styles.iconButton,
-            pressed ? styles.iconButtonPressed : null,
-            scale <= MIN_SKELETON_SCALE ? styles.iconButtonDisabled : null,
-          ]}
-        >
-          <Ionicons color="#ffffff" name="remove" size={18} />
-        </Pressable>
-
-        <Text style={styles.scaleLabel}>{formatScale(scale)}</Text>
-
-        <Pressable
-          accessibilityLabel="스켈레톤 확대"
-          disabled={scale >= MAX_SKELETON_SCALE}
-          onPress={() => nudgeScale(1)}
-          style={({ pressed }) => [
-            styles.iconButton,
-            pressed ? styles.iconButtonPressed : null,
-            scale >= MAX_SKELETON_SCALE ? styles.iconButtonDisabled : null,
-          ]}
-        >
-          <Ionicons color="#ffffff" name="add" size={18} />
-        </Pressable>
-
-        <Pressable
-          accessibilityLabel="스켈레톤 초기화"
-          onPress={resetPose}
-          style={({ pressed }) => [
-            styles.iconButton,
-            pressed ? styles.iconButtonPressed : null,
-          ]}
-        >
-          <Ionicons color="#ffffff" name="refresh" size={18} />
-        </Pressable>
-      </View>
     </View>
   );
 }
@@ -743,38 +828,5 @@ const styles = StyleSheet.create({
   },
   bodyHitArea: {
     position: "absolute",
-  },
-  controls: {
-    position: "absolute",
-    left: 14,
-    bottom: 136,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 7,
-    borderRadius: 16,
-    backgroundColor: "rgba(10,10,10,0.42)",
-  },
-  iconButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    width: 31,
-    height: 31,
-    borderRadius: 15.5,
-    backgroundColor: "rgba(255,255,255,0.14)",
-  },
-  iconButtonPressed: {
-    backgroundColor: "rgba(255,255,255,0.24)",
-  },
-  iconButtonDisabled: {
-    opacity: 0.4,
-  },
-  scaleLabel: {
-    minWidth: 42,
-    color: "#ffffff",
-    fontSize: 12,
-    fontWeight: "800",
-    textAlign: "center",
   },
 });
