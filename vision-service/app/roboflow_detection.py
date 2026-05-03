@@ -65,6 +65,25 @@ def _bgr_to_hex(blue: float, green: float, red: float) -> str:
     return f"#{_component_to_hex(red)}{_component_to_hex(green)}{_component_to_hex(blue)}"
 
 
+def _representative_bgr(pixels: np.ndarray) -> tuple[float, float, float]:
+    if len(pixels) == 0:
+        return 0, 0, 0
+
+    hsv = cv2.cvtColor(pixels.reshape(-1, 1, 3), cv2.COLOR_BGR2HSV).reshape(-1, 3)
+    saturation = hsv[:, 1]
+    value = hsv[:, 2]
+    colored_pixels = (saturation >= 50) & (value >= 45)
+
+    if np.count_nonzero(colored_pixels) >= max(24, int(len(pixels) * 0.18)):
+        chalk_pixels = (saturation <= 55) & (value >= 165)
+        usable_pixels = colored_pixels & ~chalk_pixels
+        if np.count_nonzero(usable_pixels) >= 12:
+            pixels = pixels[usable_pixels]
+
+    blue, green, red = np.median(pixels, axis=0)
+    return float(blue), float(green), float(red)
+
+
 def _prediction_class(prediction: dict[str, Any]) -> Literal["hold", "volume"] | None:
     raw_class = prediction.get("class") or prediction.get("class_name")
     if raw_class not in ALLOWED_CLASSES:
@@ -156,7 +175,7 @@ def _mean_color(image: np.ndarray, points: list[Point]) -> Color:
     cv2.fillPoly(mask, [contour], 255)
     if cv2.countNonZero(mask) == 0:
         return Color(hex="#000000")
-    blue, green, red, _ = cv2.mean(image, mask=mask)
+    blue, green, red = _representative_bgr(image[mask > 0])
     return Color(hex=_bgr_to_hex(blue, green, red))
 
 
