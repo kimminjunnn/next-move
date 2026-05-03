@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { VisionClientService } from "../vision-client/vision-client.service";
@@ -37,16 +37,20 @@ export class WallAnalysesService {
     const imagePath = join(uploadDir, filename);
     await writeFile(imagePath, file.buffer);
 
-    const result = await this.visionClient.analyzeWall({ imagePath });
-    const analysis: WallAnalysisResponse = {
-      id: `an_${randomUUID()}`,
-      image: result.image,
-      objects: result.objects,
-    };
+    try {
+      const result = await this.visionClient.analyzeWall({ imagePath });
+      const analysis: WallAnalysisResponse = {
+        id: `an_${randomUUID()}`,
+        image: result.image,
+        objects: result.objects,
+      };
 
-    this.analyses.set(analysis.id, analysis);
+      this.analyses.set(analysis.id, analysis);
 
-    return { analysis };
+      return { analysis };
+    } finally {
+      await unlink(imagePath).catch(() => undefined);
+    }
   }
 
   async selectRoute(analysisId: string, dto: SelectRouteDto) {

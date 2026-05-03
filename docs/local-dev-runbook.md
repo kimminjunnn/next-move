@@ -23,18 +23,6 @@ ipconfig getifaddr en1
 
 ## 1. Vision Service
 
-Roboflow hold detection은 `vision-service/.env`의 API 설정을 사용한다.
-
-필수 값:
-
-```bash
-ROBOFLOW_API_KEY=...
-ROBOFLOW_MODEL_ID=climbing-hold-detection-7uehq/22
-ROBOFLOW_API_URL=https://detect.roboflow.com
-```
-
-`.env`는 로컬 전용 파일이고 git에 커밋하지 않는다.
-
 ```bash
 cd /Users/mj/Dev/next-move/vision-service && source .venv/bin/activate && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
@@ -48,16 +36,10 @@ cd /Users/mj/Dev/next-move/nest-api && npm run start:dev
 ## 3. Expo Dev Client
 
 ```bash
-cd /Users/mj/Dev/next-move && EXPO_PUBLIC_WALL_API_URL=http://<맥IP>:3000 npx expo start --dev-client --host lan
+cd /Users/mj/Dev/next-move && EXPO_PUBLIC_WALL_API_URL=http://172.30.1.83:3000 npx expo start --dev-client --host lan
 ```
 
-`<맥IP>`는 예시 문자열이 아니다. 실제 실행 전에는 위의 IP 확인 명령으로 현재 맥 IP를 먼저 확인하고 바꿔서 실행한다.
-
-예를 들어 맥 IP가 `192.168.0.80`이면:
-
-```bash
-cd /Users/mj/Dev/next-move && EXPO_PUBLIC_WALL_API_URL=http://192.168.0.80:3000 npx expo start --dev-client --host lan
-```
+`192.168.0.80`는 예시다. 실제 실행 전에는 위의 IP 확인 명령으로 현재 맥 IP를 먼저 확인하고 바꿔서 실행한다.
 
 ## 체크 포인트
 
