@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   PanResponder,
   StyleSheet,
@@ -35,10 +35,6 @@ import type {
 type SkeletonPoseOverlayProps = {
   initialCenter?: SimulationPoint;
   mode: "calibrating" | "simulating";
-  onCalibrationControlsChange?: (controls: {
-    resetPose: () => void;
-    scale: number;
-  }) => void;
   viewportHeight: number;
   viewportWidth: number;
 };
@@ -216,7 +212,6 @@ function scalePoseAroundCenter(
 export function SkeletonPoseOverlay({
   initialCenter,
   mode,
-  onCalibrationControlsChange,
   viewportHeight,
   viewportWidth,
 }: SkeletonPoseOverlayProps) {
@@ -609,31 +604,6 @@ export function SkeletonPoseOverlay({
       }),
     [],
   );
-
-  const resetPose = useCallback(() => {
-    const defaultPose = createDefaultPose(
-      bodyModel,
-      viewportWidth,
-      viewportHeight,
-      initialCenterX !== undefined && initialCenterY !== undefined
-        ? { x: initialCenterX, y: initialCenterY }
-        : undefined,
-    );
-
-    poseRef.current = defaultPose;
-    setPose(defaultPose);
-  }, [bodyModel, initialCenterX, initialCenterY, viewportHeight, viewportWidth]);
-
-  useEffect(() => {
-    if (mode !== "calibrating") {
-      return;
-    }
-
-    onCalibrationControlsChange?.({
-      resetPose,
-      scale,
-    });
-  }, [mode, onCalibrationControlsChange, resetPose, scale]);
 
   return (
     <View

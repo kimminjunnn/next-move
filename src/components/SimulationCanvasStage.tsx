@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -19,6 +19,7 @@ import {
   analysisPointToViewportPoint,
   viewportPointToAnalysisPoint,
 } from "../lib/simulationViewport";
+import { toggleRouteIncludedObjectIds } from "../lib/routeSelectionState";
 import type {
   RouteSelectionResult,
   SimulationDetectedObject,
@@ -46,7 +47,8 @@ type CanvasFlowStep =
   | "analyzingHolds"
   | "selectingStartHold"
   | "selectingRoute"
-  | "calibratingSkeleton"
+  | "routeEditing"
+  | "sizingSkeleton"
   | "simulating";
 
 export function SimulationCanvasStage({
@@ -68,10 +70,6 @@ export function SimulationCanvasStage({
   >(null);
   const [highlightError, setHighlightError] = useState<string | null>(null);
   const [flowStep, setFlowStep] = useState<CanvasFlowStep>("analyzingHolds");
-  const [skeletonScale, setSkeletonScale] = useState(0);
-  const [resetSkeletonPose, setResetSkeletonPose] = useState<(() => void) | null>(
-    null,
-  );
   const simulationCueOpacity = useRef(new Animated.Value(0)).current;
   const simulationCueTranslateY = useRef(new Animated.Value(18)).current;
   const simulationCueScale = useRef(new Animated.Value(0.92)).current;
@@ -251,6 +249,18 @@ export function SimulationCanvasStage({
     );
   }
 
+  function findContainingHold(
+    sourcePoint: SimulationPoint,
+    objects: SimulationDetectedObject[],
+  ) {
+    return (
+      objects.find(
+        (object) =>
+          object.kind === "hold" && isPointInPolygon(sourcePoint, object.contour),
+      ) ?? null
+    );
+  }
+
   async function handleCanvasPress(point: SimulationPoint) {
     if (
       viewport.width <= 0 ||
@@ -300,12 +310,52 @@ export function SimulationCanvasStage({
       }
 
       setRouteResult(result);
-      setFlowStep("calibratingSkeleton");
+      setFlowStep("routeEditing");
     } catch {
       setRouteResult(null);
       setHighlightError("루트 선택에 실패했어요. 다시 탭해보세요.");
       setFlowStep("selectingStartHold");
     }
+  }
+
+  function handleRouteHoldToggle(point: SimulationPoint) {
+    if (
+      viewport.width <= 0 ||
+      viewport.height <= 0 ||
+      !analysisResult ||
+      !routeResult
+    ) {
+      return;
+    }
+
+    const analysisPoint = viewportPointToAnalysisPoint(
+      point,
+      photo,
+      analysisResult.image,
+      transform,
+      viewport.width,
+      viewport.height,
+    );
+    const holdObject = findContainingHold(analysisPoint, analysisResult.objects);
+
+    if (!holdObject) {
+      return;
+    }
+
+    setRouteResult((currentRoute) => {
+      if (!currentRoute) {
+        return currentRoute;
+      }
+
+      return {
+        ...currentRoute,
+        includedObjectIds: toggleRouteIncludedObjectIds({
+          includedObjectIds: currentRoute.includedObjectIds,
+          objectId: holdObject.id,
+          startHoldObjectId: currentRoute.startHoldObjectId,
+        }),
+      };
+    });
   }
 
   function handleReselectRoute() {
@@ -315,35 +365,17 @@ export function SimulationCanvasStage({
     setFlowStep("selectingStartHold");
   }
 
-  function formatSkeletonScale(scale: number) {
-    if (scale <= 0) {
-      return "--";
-    }
-
-    return `${Math.round(scale * 100)}%`;
-  }
-
-  const handleCalibrationControlsChange = useCallback(
-    (controls: { resetPose: () => void; scale: number }) => {
-      setSkeletonScale((currentScale) =>
-        currentScale === controls.scale ? currentScale : controls.scale,
-      );
-      setResetSkeletonPose(() => controls.resetPose);
-    },
-    [],
-  );
-
   const holdCount = analysisResult
     ? analysisResult.objects.filter((object) => object.kind === "hold").length
     : 0;
   const overlayObjects =
-    analysisResult && routeResult
+    analysisResult && routeResult && flowStep !== "routeEditing"
       ? analysisResult.objects.filter((object) =>
           routeResult.includedObjectIds.includes(object.id),
         )
       : analysisResult
-      ? analysisResult.objects.filter((object) => object.kind === "hold")
-      : [];
+        ? analysisResult.objects.filter((object) => object.kind === "hold")
+        : [];
   const overlayDisplayMode = routeResult ? "route" : "all-holds";
   const selectedStartHoldObject =
     analysisResult && selectedStartHoldObjectId
@@ -383,7 +415,7 @@ export function SimulationCanvasStage({
   const isAnalyzingHolds = flowStep === "analyzingHolds";
   const isSelectingRoute = flowStep === "selectingRoute";
   const shouldShowSkeletonOverlay =
-    flowStep === "calibratingSkeleton" || flowStep === "simulating";
+    flowStep === "sizingSkeleton" || flowStep === "simulating";
   const shouldShowInfoCard = flowStep !== "simulating";
 
   const infoTitle = (() => {
@@ -400,7 +432,9 @@ export function SimulationCanvasStage({
         return "스타트 홀드를 탭하세요";
       case "selectingRoute":
         return "같은 색 루트를 찾는 중";
-      case "calibratingSkeleton":
+      case "routeEditing":
+        return "루트 홀드를 확인하세요";
+      case "sizingSkeleton":
         return "스켈레톤 크기와 위치를 맞춰주세요";
       case "simulating":
         return "손과 발을 움직여 다음 동작을 확인하세요";
@@ -437,6 +471,18 @@ export function SimulationCanvasStage({
               transform={transform}
               viewportHeight={viewport.height}
               viewportWidth={viewport.width}
+            />
+          ) : null}
+
+          {routeResult && flowStep === "routeEditing" ? (
+            <Pressable
+              onPress={(event) =>
+                handleRouteHoldToggle({
+                  x: event.nativeEvent.locationX,
+                  y: event.nativeEvent.locationY,
+                })
+              }
+              style={styles.touchLayer}
             />
           ) : null}
 
@@ -485,11 +531,26 @@ export function SimulationCanvasStage({
             </Pressable>
           ) : null}
 
-          {flowStep === "calibratingSkeleton" ? (
-            <View pointerEvents="box-none" style={styles.infoOverlay}>
-              <View style={styles.infoCard}>
-                <View style={styles.infoHeaderRow}>
-                  <Text style={styles.infoEyebrow}>SKELETON FIT</Text>
+          {shouldShowSkeletonOverlay &&
+          viewport.width > 0 &&
+          viewport.height > 0 ? (
+            <SkeletonPoseOverlay
+              initialCenter={skeletonInitialCenter}
+              mode={
+                flowStep === "sizingSkeleton"
+                  ? "calibrating"
+                  : "simulating"
+              }
+              viewportHeight={viewport.height}
+              viewportWidth={viewport.width}
+            />
+          ) : null}
+
+          {flowStep === "routeEditing" ? (
+            <View pointerEvents="box-none" style={styles.routeEditPanelOverlay}>
+              <View pointerEvents="box-none" style={styles.routeEditPanel}>
+                <View pointerEvents="none" style={styles.infoHeaderRow}>
+                  <Text style={styles.infoEyebrow}>ROUTE EDIT</Text>
                   <View style={styles.statusChip}>
                     <Text style={styles.statusChipText}>
                       {routeResult
@@ -498,28 +559,12 @@ export function SimulationCanvasStage({
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.infoTitle}>{infoTitle}</Text>
 
-                <View style={styles.calibrationHintRow}>
-                  <Text style={styles.calibrationHint}>
-                    두 손가락으로 크기를 조절하세요
-                  </Text>
-                  <Text style={styles.calibrationScale}>
-                    {formatSkeletonScale(skeletonScale)}
-                  </Text>
-                </View>
+                <Text pointerEvents="none" style={styles.routeEditHint}>
+                  인식하지 못한 홀드는 탭해서 루트에 추가하세요.
+                </Text>
 
-                <View style={styles.calibrationActionRow}>
-                  <Pressable
-                    onPress={() => resetSkeletonPose?.()}
-                    style={({ pressed }) => [
-                      styles.calibrationIconButton,
-                      pressed ? styles.reselectButtonPressed : null,
-                    ]}
-                  >
-                    <Ionicons color="#ffffff" name="refresh" size={16} />
-                  </Pressable>
-
+                <View pointerEvents="box-none" style={styles.calibrationActionRow}>
                   <Pressable
                     onPress={handleReselectRoute}
                     style={({ pressed }) => [
@@ -529,8 +574,52 @@ export function SimulationCanvasStage({
                     ]}
                   >
                     <Text style={styles.reselectButtonText}>
-                      루트 다시 선택
+                      스타트 다시 선택
                     </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => setFlowStep("sizingSkeleton")}
+                    style={({ pressed }) => [
+                      styles.calibrationConfirmButton,
+                      pressed ? styles.calibrationConfirmButtonPressed : null,
+                    ]}
+                  >
+                    <Text style={styles.calibrationConfirmButtonText}>다음</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          ) : null}
+
+          {flowStep === "sizingSkeleton" ? (
+            <View pointerEvents="box-none" style={styles.routeEditPanelOverlay}>
+              <View pointerEvents="box-none" style={styles.routeEditPanel}>
+                <View pointerEvents="none" style={styles.infoHeaderRow}>
+                  <Text style={styles.infoEyebrow}>SKELETON FIT</Text>
+                  <View style={styles.statusChip}>
+                    <Text style={styles.statusChipText}>
+                      {routeResult
+                        ? `${routeResult.includedObjectIds.length} route`
+                        : `${holdCount} holds`}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text pointerEvents="none" style={styles.routeEditHint}>
+                  두 손가락으로 크기를 맞추고, 끌어서 위치를 조정하세요.
+                </Text>
+
+                <View pointerEvents="box-none" style={styles.calibrationActionRow}>
+                  <Pressable
+                    onPress={() => setFlowStep("routeEditing")}
+                    style={({ pressed }) => [
+                      styles.reselectButton,
+                      styles.calibrationTextButton,
+                      pressed ? styles.reselectButtonPressed : null,
+                    ]}
+                  >
+                    <Text style={styles.reselectButtonText}>이전</Text>
                   </Pressable>
 
                   <Pressable
@@ -545,37 +634,6 @@ export function SimulationCanvasStage({
                 </View>
               </View>
             </View>
-          ) : null}
-
-          {flowStep === "simulating" ? (
-            <View pointerEvents="box-none" style={styles.reselectOverlay}>
-              <Pressable
-                onPress={handleReselectRoute}
-                style={({ pressed }) => [
-                  styles.reselectButton,
-                  styles.reselectButtonFloating,
-                  pressed ? styles.reselectButtonPressed : null,
-                ]}
-              >
-                <Text style={styles.reselectButtonText}>루트 다시 선택</Text>
-              </Pressable>
-            </View>
-          ) : null}
-
-          {shouldShowSkeletonOverlay &&
-          viewport.width > 0 &&
-          viewport.height > 0 ? (
-            <SkeletonPoseOverlay
-              initialCenter={skeletonInitialCenter}
-              mode={
-                flowStep === "calibratingSkeleton"
-                  ? "calibrating"
-                  : "simulating"
-              }
-              onCalibrationControlsChange={handleCalibrationControlsChange}
-              viewportHeight={viewport.height}
-              viewportWidth={viewport.width}
-            />
           ) : null}
 
           <View style={styles.canvasTopOverlay}>
@@ -676,6 +734,21 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: "rgba(10, 10, 10, 0.58)",
   },
+  routeEditPanelOverlay: {
+    position: "absolute",
+    left: 14,
+    right: 14,
+    bottom: 18,
+    zIndex: 20,
+  },
+  routeEditPanel: {
+    alignSelf: "stretch",
+    paddingHorizontal: 14,
+    paddingTop: 11,
+    paddingBottom: 12,
+    borderRadius: 18,
+    backgroundColor: "rgba(10, 10, 10, 0.68)",
+  },
   infoHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -738,39 +811,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "800",
   },
-  calibrationHintRow: {
-    marginTop: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  calibrationHint: {
-    flex: 1,
+  routeEditHint: {
+    marginTop: 7,
     color: "#ffddb7",
     fontSize: 12,
     fontWeight: "800",
-  },
-  calibrationScale: {
-    minWidth: 44,
-    color: "#ffffff",
-    fontSize: 12,
-    fontWeight: "900",
-    textAlign: "right",
+    lineHeight: 16,
   },
   calibrationActionRow: {
     marginTop: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-  },
-  calibrationIconButton: {
-    width: 31,
-    height: 31,
-    borderRadius: 15.5,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.12)",
   },
   calibrationTextButton: {
     marginTop: 0,
@@ -791,15 +843,6 @@ const styles = StyleSheet.create({
     color: "#171717",
     fontSize: 12,
     fontWeight: "900",
-  },
-  reselectOverlay: {
-    position: "absolute",
-    top: 68,
-    left: 14,
-  },
-  reselectButtonFloating: {
-    marginTop: 0,
-    backgroundColor: "rgba(10,10,10,0.48)",
   },
   simulationCue: {
     position: "absolute",

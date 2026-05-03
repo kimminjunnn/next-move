@@ -85,14 +85,14 @@ export function RouteHighlightOverlay({
             .join(" ");
           const strokeColor = isRouteMode
             ? object.isIncluded
-              ? accentColor
+              ? "#ffffff"
               : object.kind === "hold"
-                ? "rgba(255,255,255,0.16)"
+                ? "rgba(255,255,255,0.18)"
                 : "rgba(149,216,255,0.18)"
             : "rgba(255,255,255,0.94)";
           const fillColor = isRouteMode
             ? object.isIncluded
-              ? "rgba(255,140,56,0.08)"
+              ? "rgba(255,255,255,0.08)"
               : object.kind === "hold"
                 ? "rgba(255,255,255,0)"
                 : "rgba(149,216,255,0)"
