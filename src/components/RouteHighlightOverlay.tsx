@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
-import Svg, { Circle, G, Polyline } from "react-native-svg";
+import Svg, { Circle, G, Polygon } from "react-native-svg";
 
-import { photoPointToViewportPoint } from "../lib/simulationViewport";
+import { analysisPointToViewportPoint } from "../lib/simulationViewport";
 import type {
   RouteSelectionResult,
   SimulationDetectedObject,
@@ -11,6 +11,11 @@ import type {
 } from "../types/simulation";
 
 type RouteHighlightOverlayProps = {
+  analysisImage: {
+    width: number;
+    height: number;
+  };
+  displayMode: "all-holds" | "route";
   photo: SimulationPhoto;
   objects: SimulationDetectedObject[];
   route: RouteSelectionResult | null;
@@ -21,6 +26,8 @@ type RouteHighlightOverlayProps = {
 };
 
 export function RouteHighlightOverlay({
+  analysisImage,
+  displayMode,
   photo,
   objects,
   route,
@@ -29,21 +36,24 @@ export function RouteHighlightOverlay({
   viewportHeight,
   viewportWidth,
 }: RouteHighlightOverlayProps) {
+  const isRouteMode = displayMode === "route";
   const mappedObjects = useMemo(
     () =>
       objects.map((object) => ({
         ...object,
         viewportContour: object.contour.map((point) =>
-          photoPointToViewportPoint(
+          analysisPointToViewportPoint(
             point,
+            analysisImage,
             photo,
             transform,
             viewportWidth,
             viewportHeight,
           ),
         ),
-        viewportCenter: photoPointToViewportPoint(
+        viewportCenter: analysisPointToViewportPoint(
           object.center,
+          analysisImage,
           photo,
           transform,
           viewportWidth,
@@ -52,7 +62,16 @@ export function RouteHighlightOverlay({
         isIncluded: route ? route.includedObjectIds.includes(object.id) : false,
         isSelectedStart: object.id === selectedStartHoldObjectId,
       })),
-    [objects, photo, route, selectedStartHoldObjectId, transform, viewportHeight, viewportWidth],
+    [
+      analysisImage,
+      objects,
+      photo,
+      route,
+      selectedStartHoldObjectId,
+      transform,
+      viewportHeight,
+      viewportWidth,
+    ],
   );
 
   const accentColor = route?.routeColor.hex ?? "#ffb37a";
@@ -64,32 +83,36 @@ export function RouteHighlightOverlay({
           const points = object.viewportContour
             .map((point) => `${point.x},${point.y}`)
             .join(" ");
-          const strokeColor = object.isIncluded
-            ? accentColor
-            : object.kind === "hold"
-              ? "rgba(255,255,255,0.72)"
-              : "rgba(149,216,255,0.72)";
-          const fillColor = object.isIncluded
-            ? "rgba(255,140,56,0.08)"
-            : object.kind === "hold"
-              ? "rgba(255,255,255,0.02)"
-              : "rgba(149,216,255,0.05)";
+          const strokeColor = isRouteMode
+            ? object.isIncluded
+              ? accentColor
+              : object.kind === "hold"
+                ? "rgba(255,255,255,0.16)"
+                : "rgba(149,216,255,0.18)"
+            : "rgba(255,255,255,0.94)";
+          const fillColor = isRouteMode
+            ? object.isIncluded
+              ? "rgba(255,140,56,0.08)"
+              : object.kind === "hold"
+                ? "rgba(255,255,255,0)"
+                : "rgba(149,216,255,0)"
+            : "rgba(255,255,255,0)";
 
           return (
             <G key={object.id}>
-              <Polyline
+              <Polygon
                 fill={fillColor}
                 points={points}
                 stroke="rgba(15,15,15,0.92)"
                 strokeLinejoin="round"
-                strokeWidth={object.isIncluded ? 7 : 5.5}
+                strokeWidth={isRouteMode ? (object.isIncluded ? 7 : 4) : 6.4}
               />
-              <Polyline
+              <Polygon
                 fill={fillColor}
                 points={points}
                 stroke={strokeColor}
                 strokeLinejoin="round"
-                strokeWidth={object.isIncluded ? 3.4 : 2}
+                strokeWidth={isRouteMode ? (object.isIncluded ? 3.4 : 1.1) : 2.8}
               />
 
               {object.isSelectedStart ? (

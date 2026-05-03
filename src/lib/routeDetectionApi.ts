@@ -9,10 +9,15 @@ const WALL_API_BASE_URL =
   "http://localhost:3000";
 
 function buildFilePayload(photo: SimulationPhoto) {
-  const filename = photo.uri.split("/").pop() || `wall-photo-${photo.updatedAt}.jpg`;
+  const filename =
+    photo.uri.split("/").pop() || `wall-photo-${photo.updatedAt}.jpg`;
   const extension = filename.split(".").pop()?.toLowerCase();
   const type =
-    extension === "png" ? "image/png" : extension === "heic" ? "image/heic" : "image/jpeg";
+    extension === "png"
+      ? "image/png"
+      : extension === "heic"
+        ? "image/heic"
+        : "image/jpeg";
 
   return {
     uri: photo.uri,
@@ -48,22 +53,15 @@ export async function createWallAnalysis(
   formData.append("file", buildFilePayload(photo) as never);
   const requestUrl = `${WALL_API_BASE_URL}/api/v1/wall-analyses`;
 
-  console.log("[route-detection] createWallAnalysis ->", {
-    url: requestUrl,
-    photoUri: photo.uri,
-    source: photo.source,
-  });
-
   const response = await fetch(requestUrl, {
     method: "POST",
     body: formData,
   });
 
-  const payload = await parseJsonResponse<{ analysis: WallAnalysisResult }>(response);
-  console.log("[route-detection] createWallAnalysis <-", {
-    analysisId: payload.analysis.id,
-    objectCount: payload.analysis.objects.length,
-  });
+  const payload = await parseJsonResponse<{ analysis: WallAnalysisResult }>(
+    response,
+  );
+
   return payload.analysis;
 }
 
@@ -74,12 +72,6 @@ export async function selectDetectedRoute(params: {
   const { analysisId, startHoldObjectId } = params;
   const requestUrl = `${WALL_API_BASE_URL}/api/v1/wall-analyses/${analysisId}/route`;
 
-  console.log("[route-detection] selectDetectedRoute ->", {
-    url: requestUrl,
-    analysisId,
-    startHoldObjectId,
-  });
-
   const response = await fetch(requestUrl, {
     method: "POST",
     headers: {
@@ -88,10 +80,8 @@ export async function selectDetectedRoute(params: {
     body: JSON.stringify({ startHoldObjectId }),
   });
 
-  const payload = await parseJsonResponse<{ route: RouteSelectionResult }>(response);
-  console.log("[route-detection] selectDetectedRoute <-", {
-    analysisId: payload.route.analysisId,
-    includedObjectIds: payload.route.includedObjectIds,
-  });
+  const payload = await parseJsonResponse<{ route: RouteSelectionResult }>(
+    response,
+  );
   return payload.route;
 }

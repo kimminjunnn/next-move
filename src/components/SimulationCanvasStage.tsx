@@ -14,7 +14,7 @@ import {
   createWallAnalysis,
   selectDetectedRoute,
 } from "../lib/routeDetectionApi";
-import { viewportPointToPhotoPoint } from "../lib/simulationViewport";
+import { viewportPointToAnalysisPoint } from "../lib/simulationViewport";
 import type {
   RouteSelectionResult,
   SimulationDetectedObject,
@@ -47,11 +47,14 @@ export function SimulationCanvasStage({
 }: SimulationCanvasStageProps) {
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [confirmVisible, setConfirmVisible] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<WallAnalysisResult | null>(null);
-  const [routeResult, setRouteResult] = useState<RouteSelectionResult | null>(null);
-  const [selectedStartHoldObjectId, setSelectedStartHoldObjectId] = useState<string | null>(
+  const [analysisResult, setAnalysisResult] =
+    useState<WallAnalysisResult | null>(null);
+  const [routeResult, setRouteResult] = useState<RouteSelectionResult | null>(
     null,
   );
+  const [selectedStartHoldObjectId, setSelectedStartHoldObjectId] = useState<
+    string | null
+  >(null);
   const [highlightError, setHighlightError] = useState<string | null>(null);
   const [isAnalyzingWall, setIsAnalyzingWall] = useState(false);
   const [isSelectingRoute, setIsSelectingRoute] = useState(false);
@@ -80,7 +83,9 @@ export function SimulationCanvasStage({
         setAnalysisResult(result);
 
         if (result.objects.length === 0) {
-          setHighlightError("홀드와 볼륨을 찾지 못했어요. 다른 사진으로 다시 시도해보세요.");
+          setHighlightError(
+            "홀드와 볼륨을 찾지 못했어요. 다른 사진으로 다시 시도해보세요.",
+          );
         }
       })
       .catch((error: unknown) => {
@@ -105,15 +110,38 @@ export function SimulationCanvasStage({
     };
   }, [photo]);
 
-  useEffect(() => {
-    setRouteResult(null);
-    setSelectedStartHoldObjectId(null);
-  }, [transform]);
-
   function getDistanceSquared(a: SimulationPoint, b: SimulationPoint) {
     const x = a.x - b.x;
     const y = a.y - b.y;
     return x * x + y * y;
+  }
+
+  function isPointInPolygon(
+    point: SimulationPoint,
+    polygon: SimulationDetectedObject["contour"],
+  ) {
+    let isInside = false;
+
+    for (
+      let currentIndex = 0, previousIndex = polygon.length - 1;
+      currentIndex < polygon.length;
+      previousIndex = currentIndex, currentIndex += 1
+    ) {
+      const currentPoint = polygon[currentIndex];
+      const previousPoint = polygon[previousIndex];
+      const intersects =
+        currentPoint.y > point.y !== previousPoint.y > point.y &&
+        point.x <
+          ((previousPoint.x - currentPoint.x) * (point.y - currentPoint.y)) /
+            (previousPoint.y - currentPoint.y) +
+            currentPoint.x;
+
+      if (intersects) {
+        isInside = !isInside;
+      }
+    }
+
+    return isInside;
   }
 
   function selectNearestHold(
@@ -124,6 +152,14 @@ export function SimulationCanvasStage({
 
     if (holds.length === 0) {
       return null;
+    }
+
+    const containingHold = holds.find((object) =>
+      isPointInPolygon(sourcePoint, object.contour),
+    );
+
+    if (containingHold) {
+      return containingHold;
     }
 
     return holds.reduce((closest, current) =>
@@ -145,15 +181,16 @@ export function SimulationCanvasStage({
       return;
     }
 
-    const sourceStartHoldPoint = viewportPointToPhotoPoint(
+    const analysisStartHoldPoint = viewportPointToAnalysisPoint(
       point,
       photo,
+      analysisResult.image,
       transform,
       viewport.width,
       viewport.height,
     );
     const startHoldObject = selectNearestHold(
-      sourceStartHoldPoint,
+      analysisStartHoldPoint,
       analysisResult.objects,
     );
 
@@ -175,7 +212,9 @@ export function SimulationCanvasStage({
       setRouteResult(result);
 
       if (result.includedObjectIds.length === 0) {
-        setHighlightError("같은 색 route를 찾지 못했어요. 다른 홀드를 탭해보세요.");
+        setHighlightError(
+          "같은 색 route를 찾지 못했어요. 다른 홀드를 탭해보세요.",
+        );
       }
     } catch {
       setRouteResult(null);
@@ -184,6 +223,15 @@ export function SimulationCanvasStage({
       setIsSelectingRoute(false);
     }
   }
+
+  const holdCount = analysisResult
+    ? analysisResult.objects.filter((object) => object.kind === "hold").length
+    : 0;
+  const overlayObjects =
+    analysisResult && routeResult === null
+      ? analysisResult.objects.filter((object) => object.kind === "hold")
+      : analysisResult?.objects ?? [];
+  const overlayDisplayMode = routeResult ? "route" : "all-holds";
 
   return (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
@@ -202,7 +250,9 @@ export function SimulationCanvasStage({
 
           {analysisResult && viewport.width > 0 && viewport.height > 0 ? (
             <RouteHighlightOverlay
-              objects={analysisResult.objects}
+              analysisImage={analysisResult.image}
+              displayMode={overlayDisplayMode}
+              objects={overlayObjects}
               photo={photo}
               route={routeResult}
               selectedStartHoldObjectId={selectedStartHoldObjectId}
@@ -223,20 +273,26 @@ export function SimulationCanvasStage({
           >
             <View style={styles.infoOverlay}>
               <View style={styles.infoCard}>
-                <Text style={styles.infoEyebrow}>ROUTE DETECTION</Text>
+                <View style={styles.infoHeaderRow}>
+                  <Text style={styles.infoEyebrow}>ROUTE DETECTION</Text>
+                  {!isAnalyzingWall && analysisResult ? (
+                    <View style={styles.statusChip}>
+                      <Text style={styles.statusChipText}>
+                        {routeResult
+                          ? `${routeResult.includedObjectIds.length} selected`
+                          : `${holdCount} holds`}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
                 <Text style={styles.infoTitle}>
                   {isAnalyzingWall
-                    ? "홀드와 볼륨을 분석하는 중"
+                    ? "홀드 border를 찾는 중"
                     : isSelectingRoute
                       ? "같은 색 route를 찾는 중"
-                      : "스타트 홀드를 탭해 전체 루트를 강조하세요"}
-                </Text>
-                <Text style={styles.infoBody}>
-                  {isAnalyzingWall
-                    ? "사진을 서버로 보내 hold와 volume border를 먼저 찾고 있어요."
-                    : isSelectingRoute
-                      ? "선택한 스타트 홀드를 기준으로 같은 색 hold와 연결된 volume을 고르고 있어요."
-                      : "분석이 끝난 뒤 홀드를 탭하면 같은 색 route를 자동으로 강조합니다. 다시 탭하면 다른 스타트 홀드로 재선택합니다."}
+                      : routeResult
+                        ? "다른 스타트 홀드를 탭해 다시 선택"
+                        : "모든 홀드를 표시했어요. 스타트 홀드를 탭하세요"}
                 </Text>
 
                 {isAnalyzingWall || isSelectingRoute ? (
@@ -246,30 +302,6 @@ export function SimulationCanvasStage({
                       {isAnalyzingWall
                         ? "wall analysis 요청 중"
                         : "route selection 요청 중"}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {!isAnalyzingWall && analysisResult ? (
-                  <View style={styles.resultRow}>
-                    <View style={styles.resultChip}>
-                      <View
-                        style={[
-                          styles.resultColorDot,
-                          {
-                            backgroundColor: routeResult?.routeColor.hex ?? "#ffffff",
-                          },
-                        ]}
-                      />
-                      <Text style={styles.resultChipText}>
-                        {routeResult ? "선택 route" : "분석 완료"}
-                      </Text>
-                    </View>
-
-                    <Text style={styles.resultCount}>
-                      {routeResult
-                        ? `${routeResult.includedObjectIds.length}개 오브젝트 강조`
-                        : `${analysisResult.objects.length}개 오브젝트 감지`}
                     </Text>
                   </View>
                 ) : null}
@@ -351,78 +383,63 @@ const styles = StyleSheet.create({
   },
   infoOverlay: {
     position: "absolute",
-    left: 16,
-    right: 16,
-    bottom: 24,
+    left: 14,
+    right: 14,
+    bottom: 14,
   },
   infoCard: {
-    paddingHorizontal: 18,
-    paddingTop: 16,
-    paddingBottom: 18,
-    borderRadius: 24,
-    backgroundColor: "rgba(10, 10, 10, 0.74)",
+    alignSelf: "stretch",
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 12,
+    borderRadius: 18,
+    backgroundColor: "rgba(10, 10, 10, 0.58)",
   },
-  infoEyebrow: {
-    color: "#ffb37a",
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.4,
-  },
-  infoTitle: {
-    marginTop: 8,
-    color: "#ffffff",
-    fontSize: 20,
-    fontWeight: "800",
-  },
-  infoBody: {
-    marginTop: 10,
-    color: "rgba(255,255,255,0.78)",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  loadingRow: {
-    marginTop: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  loadingText: {
-    color: "#ffddb7",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  resultRow: {
-    marginTop: 16,
+  infoHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
   },
-  resultChip: {
+  infoEyebrow: {
+    color: "#ffb37a",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+  },
+  infoTitle: {
+    marginTop: 6,
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  statusChip: {
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
+  statusChipText: {
+    color: "#ffddb7",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  loadingRow: {
+    marginTop: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  resultColorDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 999,
-  },
-  resultChipText: {
-    color: "#ffffff",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  resultCount: {
+  loadingText: {
     color: "#ffddb7",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
   },
   errorText: {
-    marginTop: 12,
+    marginTop: 8,
     color: "#ff9b8d",
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
   },
   overlayIconButton: {
     width: 42,
