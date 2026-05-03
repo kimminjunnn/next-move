@@ -1,6 +1,7 @@
 import type { SimulationPoint } from "../types/simulation";
 import type {
   SkeletonBodyModel,
+  SkeletonCoreDragInput,
   SkeletonControlJointId,
   SkeletonDragInput,
   SkeletonEndpointId,
@@ -372,6 +373,43 @@ function resolveRestingLimbs(
   return resolved;
 }
 
+function resolveAnchoredLimbs(
+  shiftedCoreJoints: SkeletonJointMap,
+  anchorJoints: SkeletonJointMap,
+  model: SkeletonBodyModel,
+): SkeletonJointMap {
+  const resolved = { ...shiftedCoreJoints };
+  const endpoints: SkeletonEndpointId[] = [
+    "leftHand",
+    "rightHand",
+    "leftFoot",
+    "rightFoot",
+  ];
+
+  endpoints.forEach((endpointId) => {
+    const rootId = endpointRootId(endpointId);
+    const jointId = endpointJointId(endpointId);
+    const lengths = limbLengths(model, endpointId);
+    const solved = solveTwoBoneJoint(
+      resolved[rootId],
+      anchorJoints[endpointId],
+      lengths.first,
+      lengths.second,
+      currentBendDirection(
+        anchorJoints[rootId],
+        anchorJoints[jointId],
+        anchorJoints[endpointId],
+        bendDirection(endpointId),
+      ),
+    );
+
+    resolved[jointId] = solved.joint;
+    resolved[endpointId] = solved.endpoint;
+  });
+
+  return resolved;
+}
+
 export function resolveSkeletonPoseDrag(
   pose: SkeletonPose,
   input: SkeletonDragInput,
@@ -444,6 +482,20 @@ export function resolveSkeletonJointDrag(
 
   return {
     joints: resolveRestingLimbs(nextJoints, model, endpointId),
+  };
+}
+
+export function resolveSkeletonCoreDrag(
+  pose: SkeletonPose,
+  input: SkeletonCoreDragInput,
+  model: SkeletonBodyModel,
+): SkeletonPose {
+  return {
+    joints: resolveAnchoredLimbs(
+      shiftCore(pose.joints, input.delta),
+      pose.joints,
+      model,
+    ),
   };
 }
 

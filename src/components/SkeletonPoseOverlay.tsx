@@ -17,6 +17,7 @@ import {
   createDefaultSkeletonPose,
   getEndpointPosition,
   getSkeletonCenter,
+  resolveSkeletonCoreDrag,
   resolveSkeletonJointDrag,
   resolveSkeletonPoseDrag,
   translateSkeletonPose,
@@ -429,10 +430,16 @@ export function SkeletonPoseOverlay({
         return;
       }
 
-      const nextPose = translateSkeletonPose(startPose, {
-        x: gestureState.dx,
-        y: gestureState.dy,
-      });
+      const nextPose = resolveSkeletonCoreDrag(
+        startPose,
+        {
+          delta: {
+            x: gestureState.dx,
+            y: gestureState.dy,
+          },
+        },
+        bodyModelRef.current,
+      );
 
       poseRef.current = nextPose;
       setPose(nextPose);
