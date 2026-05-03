@@ -287,6 +287,32 @@ function normalizeOrFallback(
   return scaleVector(vector, 1 / vectorDistance);
 }
 
+function currentBendDirection(
+  root: SimulationPoint,
+  joint: SimulationPoint,
+  endpoint: SimulationPoint,
+  fallbackDirection: 1 | -1,
+): 1 | -1 {
+  const rootToEndpoint = subtract(endpoint, root);
+  const endpointDistance = distance(root, endpoint);
+
+  if (endpointDistance <= MIN_SOLVE_DISTANCE) {
+    return fallbackDirection;
+  }
+
+  const unit = scaleVector(rootToEndpoint, 1 / endpointDistance);
+  const side = rotate90(unit, 1);
+  const rootToJoint = subtract(joint, root);
+  const signedDistance =
+    rootToJoint.x * side.x + rootToJoint.y * side.y;
+
+  if (Math.abs(signedDistance) <= MIN_SOLVE_DISTANCE) {
+    return fallbackDirection;
+  }
+
+  return signedDistance > 0 ? 1 : -1;
+}
+
 function shiftCore(
   joints: SkeletonJointMap,
   delta: SimulationPoint,
@@ -371,7 +397,12 @@ export function resolveSkeletonPoseDrag(
     input.target,
     lengths.first,
     lengths.second,
-    bendDirection(input.endpointId),
+    currentBendDirection(
+      shiftedJoints[rootId],
+      shiftedJoints[jointId],
+      shiftedJoints[input.endpointId],
+      bendDirection(input.endpointId),
+    ),
   );
   const nextJoints: SkeletonJointMap = {
     ...shiftedJoints,
@@ -398,7 +429,7 @@ export function resolveSkeletonJointDrag(
   );
   const joint = add(pose.joints[rootId], scaleVector(direction, lengths.first));
   const endpointDirection = normalizeOrFallback(
-    subtract(pose.joints[endpointId], pose.joints[input.jointId]),
+    subtract(pose.joints[endpointId], joint),
     bendDirection(endpointId),
   );
   const endpoint = add(
