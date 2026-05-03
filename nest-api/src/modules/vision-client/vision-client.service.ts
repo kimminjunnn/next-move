@@ -39,6 +39,16 @@ export class VisionClientService {
       );
       return data;
     } catch (error: any) {
+      if (error.response?.status === 400) {
+        throw new BadRequestException("이미지를 읽지 못했어요. 다시 시도해보세요.");
+      }
+
+      if (error.response?.status === 422) {
+        throw new BadRequestException(
+          "벽에서 탐지된 오브젝트가 없어요. 다른 사진으로 다시 시도해보세요.",
+        );
+      }
+
       if (error.code === "ECONNABORTED") {
         throw new GatewayTimeoutException("벽 분석 시간이 초과되었습니다.");
       }
