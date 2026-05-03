@@ -42,12 +42,15 @@ export default function SettingsScreen() {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [heightError, setHeightError] = useState<string | null>(null);
   const [wingspanError, setWingspanError] = useState<string | null>(null);
-  const [draftHeight, setDraftHeight] = useState(toDisplayNumber(profile.height));
+  const [draftHeight, setDraftHeight] = useState(
+    toDisplayNumber(profile.height),
+  );
   const [draftWingspan, setDraftWingspan] = useState(
     toDisplayNumber(profile.wingspan),
   );
-  const [draftWingspanMode, setDraftWingspanMode] =
-    useState<WingspanMode>(profile.wingspanMode);
+  const [draftWingspanMode, setDraftWingspanMode] = useState<WingspanMode>(
+    profile.wingspanMode,
+  );
 
   useEffect(() => {
     setDraftHeight(toDisplayNumber(profile.height));
@@ -119,10 +122,19 @@ export default function SettingsScreen() {
   }
 
   function handleConfirmSave() {
-    const { height, heightError: nextHeightError, wingspan, wingspanError: nextWingspanError } =
-      validateDraft();
+    const {
+      height,
+      heightError: nextHeightError,
+      wingspan,
+      wingspanError: nextWingspanError,
+    } = validateDraft();
 
-    if (nextHeightError || nextWingspanError || height === null || wingspan === null) {
+    if (
+      nextHeightError ||
+      nextWingspanError ||
+      height === null ||
+      wingspan === null
+    ) {
       return;
     }
 
@@ -264,10 +276,7 @@ export default function SettingsScreen() {
               </Text>
             </View>
 
-            <Pressable
-              onPress={handleOpenConfirm}
-              style={styles.confirmButton}
-            >
+            <Pressable onPress={handleOpenConfirm} style={styles.confirmButton}>
               <Text style={styles.confirmButtonText}>확인</Text>
               <Ionicons color="#fffdf8" name="arrow-forward" size={24} />
             </Pressable>
@@ -496,7 +505,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
-    minHeight: 84,
+    minHeight: 62,
     borderRadius: 24,
     backgroundColor: "#8f0000",
     shadowColor: "#8f0000",

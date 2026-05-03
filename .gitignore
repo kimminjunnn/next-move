@@ -32,6 +32,7 @@ yarn-error.*
 
 # local env files
 .env*.local
+vision-service/.env
 
 # typescript
 *.tsbuildinfo
@@ -39,3 +40,11 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# local service artifacts
+nest-api/uploads/
+vision-service/**/__pycache__/
+vision-service/debug_outputs*/
+vision-service/regression_inputs/wall_photos_raw/
+vision-service/regression_inputs/*
+!vision-service/regression_inputs/README.md

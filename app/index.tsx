@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignSelf: "stretch",
     gap: 14,
-    minHeight: 92,
+    minHeight: 72,
     borderRadius: 24,
     backgroundColor: "#8f0000",
     shadowColor: "#8f0000",

@@ -1,7 +1,13 @@
 import type {
+  SimulationPoint,
   SimulationPhoto,
   SimulationPhotoTransform,
 } from "../types/simulation";
+
+type ImageDimensions = {
+  width: number;
+  height: number;
+};
 
 export function clampValue(value: number, min: number, max: number): number {
   "worklet";
@@ -116,4 +122,139 @@ export function resolveAbsoluteOffsets(
     translateX: maxOffsetX * transform.offsetXRatio,
     translateY: maxOffsetY * transform.offsetYRatio,
   };
+}
+
+export function resolveRenderedPhotoRect(
+  photo: SimulationPhoto,
+  transform: SimulationPhotoTransform,
+  viewportWidth: number,
+  viewportHeight: number,
+) {
+  const baseDimensions = getBaseDimensions(photo, viewportWidth, viewportHeight);
+  const absoluteOffsets = resolveAbsoluteOffsets(
+    transform,
+    baseDimensions.width,
+    baseDimensions.height,
+    viewportWidth,
+    viewportHeight,
+  );
+  const renderedWidth = baseDimensions.width * transform.scale;
+  const renderedHeight = baseDimensions.height * transform.scale;
+
+  return {
+    left: viewportWidth / 2 - renderedWidth / 2 + absoluteOffsets.translateX,
+    top: viewportHeight / 2 - renderedHeight / 2 + absoluteOffsets.translateY,
+    width: renderedWidth,
+    height: renderedHeight,
+  };
+}
+
+export function viewportPointToPhotoPoint(
+  point: SimulationPoint,
+  photo: SimulationPhoto,
+  transform: SimulationPhotoTransform,
+  viewportWidth: number,
+  viewportHeight: number,
+): SimulationPoint {
+  const renderedRect = resolveRenderedPhotoRect(
+    photo,
+    transform,
+    viewportWidth,
+    viewportHeight,
+  );
+
+  return {
+    x:
+      clampValue(
+        (point.x - renderedRect.left) / renderedRect.width,
+        0,
+        1,
+      ) * photo.width,
+    y:
+      clampValue(
+        (point.y - renderedRect.top) / renderedRect.height,
+        0,
+        1,
+      ) * photo.height,
+  };
+}
+
+export function photoPointToViewportPoint(
+  point: SimulationPoint,
+  photo: SimulationPhoto,
+  transform: SimulationPhotoTransform,
+  viewportWidth: number,
+  viewportHeight: number,
+): SimulationPoint {
+  const renderedRect = resolveRenderedPhotoRect(
+    photo,
+    transform,
+    viewportWidth,
+    viewportHeight,
+  );
+
+  return {
+    x: renderedRect.left + (point.x / photo.width) * renderedRect.width,
+    y: renderedRect.top + (point.y / photo.height) * renderedRect.height,
+  };
+}
+
+export function analysisPointToPhotoPoint(
+  point: SimulationPoint,
+  analysisImage: ImageDimensions,
+  photo: SimulationPhoto,
+): SimulationPoint {
+  return {
+    x: (point.x / analysisImage.width) * photo.width,
+    y: (point.y / analysisImage.height) * photo.height,
+  };
+}
+
+export function photoPointToAnalysisPoint(
+  point: SimulationPoint,
+  photo: SimulationPhoto,
+  analysisImage: ImageDimensions,
+): SimulationPoint {
+  return {
+    x: (point.x / photo.width) * analysisImage.width,
+    y: (point.y / photo.height) * analysisImage.height,
+  };
+}
+
+export function analysisPointToViewportPoint(
+  point: SimulationPoint,
+  analysisImage: ImageDimensions,
+  photo: SimulationPhoto,
+  transform: SimulationPhotoTransform,
+  viewportWidth: number,
+  viewportHeight: number,
+): SimulationPoint {
+  return photoPointToViewportPoint(
+    analysisPointToPhotoPoint(point, analysisImage, photo),
+    photo,
+    transform,
+    viewportWidth,
+    viewportHeight,
+  );
+}
+
+export function viewportPointToAnalysisPoint(
+  point: SimulationPoint,
+  photo: SimulationPhoto,
+  analysisImage: ImageDimensions,
+  transform: SimulationPhotoTransform,
+  viewportWidth: number,
+  viewportHeight: number,
+): SimulationPoint {
+  return photoPointToAnalysisPoint(
+    viewportPointToPhotoPoint(
+      point,
+      photo,
+      transform,
+      viewportWidth,
+      viewportHeight,
+    ),
+    photo,
+    analysisImage,
+  );
 }
