@@ -105,14 +105,14 @@ export function RouteHighlightOverlay({
                 points={points}
                 stroke="rgba(15,15,15,0.92)"
                 strokeLinejoin="round"
-                strokeWidth={isRouteMode ? (object.isIncluded ? 5.2 : 3) : 4.8}
+                strokeWidth={isRouteMode ? (object.isIncluded ? 4.2 : 2.2) : 3.4}
               />
               <Polygon
                 fill={fillColor}
                 points={points}
                 stroke={strokeColor}
                 strokeLinejoin="round"
-                strokeWidth={isRouteMode ? (object.isIncluded ? 2.4 : 0.9) : 1.8}
+                strokeWidth={isRouteMode ? (object.isIncluded ? 1.8 : 0.7) : 1.2}
               />
 
               {object.isSelectedStart ? (

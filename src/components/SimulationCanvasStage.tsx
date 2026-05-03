@@ -232,6 +232,8 @@ export function SimulationCanvasStage({
       ? analysisResult.objects.filter((object) => object.kind === "hold")
       : analysisResult?.objects ?? [];
   const overlayDisplayMode = routeResult ? "route" : "all-holds";
+  const shouldShowSkeletonOverlay =
+    !isAnalyzingWall && analysisResult !== null && holdCount > 0;
 
   return (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
@@ -313,7 +315,9 @@ export function SimulationCanvasStage({
             </View>
           </Pressable>
 
-          {viewport.width > 0 && viewport.height > 0 ? (
+          {shouldShowSkeletonOverlay &&
+          viewport.width > 0 &&
+          viewport.height > 0 ? (
             <SkeletonPoseOverlay
               viewportHeight={viewport.height}
               viewportWidth={viewport.width}
