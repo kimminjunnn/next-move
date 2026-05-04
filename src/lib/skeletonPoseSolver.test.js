@@ -440,6 +440,149 @@ test("lets a far hand reach straighten fully without stretching either arm bone"
   );
 });
 
+test("leans the body into a far hand reach while keeping the opposite foot anchored", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 128, y: 142 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 126, y: 185 },
+    },
+  };
+  const target = { x: -55, y: 15 };
+
+  const nextPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "leftHand",
+      target,
+    },
+    model,
+  );
+
+  assert.ok(
+    distance(nextPose.joints.rightFoot, pose.joints.rightFoot) < 1,
+    "right foot should stay anchored while the left hand reaches",
+  );
+  assert.ok(
+    nextPose.joints.neck.x < pose.joints.neck.x,
+    "upper body should lean toward a far left-hand reach",
+  );
+  assert.ok(
+    nextPose.joints.pelvis.x < pose.joints.pelvis.x,
+    "pelvis should follow the reach instead of staying pinned",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightHip, nextPose.joints.rightFoot) >
+      model.thigh + model.shin - 1,
+    "opposite leg should extend to its natural reach limit before the foot lifts",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightHip, nextPose.joints.rightFoot) <=
+      model.thigh + model.shin + 0.001,
+    "opposite leg should not stretch past its bone lengths",
+  );
+  assert.ok(
+    distance(nextPose.joints.leftShoulder, target) <
+      distance(pose.joints.leftShoulder, target),
+    "left shoulder should move closer to the far hand target",
+  );
+});
+
+test("smoothly ramps body lean near the far hand reach threshold", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 128, y: 142 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 126, y: 185 },
+    },
+  };
+
+  const beforeThresholdPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "leftHand",
+      target: { x: -15, y: 25 },
+    },
+    model,
+  );
+  const afterThresholdPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "leftHand",
+      target: { x: -35, y: 25 },
+    },
+    model,
+  );
+  const pelvisShift = pose.joints.pelvis.x - afterThresholdPose.joints.pelvis.x;
+
+  assert.ok(
+    pelvisShift > 0,
+    "body lean should begin after the far hand reach threshold",
+  );
+  assert.ok(
+    pelvisShift < 22,
+    "body lean should not jump abruptly when the hand passes the reach threshold",
+  );
+  assert.ok(
+    afterThresholdPose.joints.pelvis.x <= beforeThresholdPose.joints.pelvis.x,
+    "body lean should increase toward the reach direction as the target moves farther",
+  );
+});
+
 test("keeps repeated hand drag frames stable when they use the same drag start pose", () => {
   const model = {
     height: 170,
@@ -613,7 +756,7 @@ test("leans the core toward a far foot drag", () => {
   );
 });
 
-test("raises a hand overhead by rotating the shoulder above a right angle", () => {
+test("raises the body into an overhead hand reach until both legs extend", () => {
   const model = {
     height: 170,
     wingspan: 170,
@@ -658,22 +801,41 @@ test("raises a hand overhead by rotating the shoulder above a right angle", () =
     model,
   );
 
-  assert.deepEqual(nextPose.joints.pelvis, pose.joints.pelvis);
   assert.ok(
-    distance(nextPose.joints.neck, pose.joints.neck) < 0.5,
-    "overhead hand reach should not rotate the neck",
+    nextPose.joints.pelvis.y < pose.joints.pelvis.y,
+    "overhead hand reach should raise the pelvis instead of leaving the body pinned",
   );
   assert.ok(
-    distance(nextPose.joints.torso, pose.joints.torso) < 0.5,
-    "overhead hand reach should not rotate the torso",
+    distance(nextPose.joints.leftFoot, pose.joints.leftFoot) < 1,
+    "left foot should stay anchored while the body rises",
   );
   assert.ok(
-    nextPose.joints.rightShoulder.y < pose.joints.rightShoulder.y - 10,
-    "overhead hand reach should rotate the shoulder upward past a right-angle pose",
+    distance(nextPose.joints.rightFoot, pose.joints.rightFoot) < 1,
+    "right foot should stay anchored while the body rises",
   );
   assert.ok(
-    distance(nextPose.joints.rightShoulder, pose.joints.rightShoulder) < 16,
-    "overhead shoulder rotation should stay controlled",
+    distance(nextPose.joints.leftHip, nextPose.joints.leftFoot) >
+      model.thigh + model.shin - 1,
+    "left leg should extend to its natural reach limit during an overhead reach",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightHip, nextPose.joints.rightFoot) >
+      model.thigh + model.shin - 1,
+    "right leg should extend to its natural reach limit during an overhead reach",
+  );
+  assert.ok(
+    distance(nextPose.joints.leftHip, nextPose.joints.leftFoot) <=
+      model.thigh + model.shin + 0.001,
+    "left leg should not stretch past its bone lengths",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightHip, nextPose.joints.rightFoot) <=
+      model.thigh + model.shin + 0.001,
+    "right leg should not stretch past its bone lengths",
+  );
+  assert.ok(
+    nextPose.joints.rightShoulder.y < pose.joints.rightShoulder.y,
+    "overhead hand reach should raise the shoulder toward the target",
   );
   assert.ok(
     Math.abs(

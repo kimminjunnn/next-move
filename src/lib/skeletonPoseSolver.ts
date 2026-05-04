@@ -12,6 +12,11 @@ import type {
 } from "../types/skeletonPose";
 
 const TORSO_FOLLOW_RATIO = 0.38;
+const HAND_CORE_FOLLOW_RATIO = 0.86;
+const HAND_CORE_RESPONSE_FULL_REACH_RATIO = 1.78;
+const HAND_CORE_RESPONSE_START_REACH_RATIO = 1.35;
+const HAND_CORE_VERTICAL_DIRECTION_RATIO = 0.58;
+const HAND_CORE_HORIZONTAL_DIRECTION_RATIO = 0.58;
 const ARM_SHOULDER_ROTATION_FOLLOW_RATIO = 0.82;
 const ARM_SHOULDER_ROTATION_MAX_RADIANS = 0.58;
 const ARM_SHOULDER_RESPONSE_START_REACH_RATIO = 0.82;
@@ -436,6 +441,119 @@ function isHandEndpoint(endpointId: SkeletonEndpointId) {
   return endpointId === "leftHand" || endpointId === "rightHand";
 }
 
+function oppositeFootEndpointId(
+  endpointId: SkeletonEndpointId,
+): SkeletonEndpointId | null {
+  switch (endpointId) {
+    case "leftHand":
+      return "rightFoot";
+    case "rightHand":
+      return "leftFoot";
+    default:
+      return null;
+  }
+}
+
+function maxAnchoredShiftDistance(
+  anchorRoot: SimulationPoint,
+  anchorEndpoint: SimulationPoint,
+  direction: SimulationPoint,
+  anchorMaxReach: number,
+) {
+  const anchorRootToEndpoint = subtract(anchorRoot, anchorEndpoint);
+  const projectedDistance =
+    anchorRootToEndpoint.x * direction.x + anchorRootToEndpoint.y * direction.y;
+  const currentAnchorDistance = distance(anchorRoot, anchorEndpoint);
+  const remainingReach =
+    anchorMaxReach * anchorMaxReach - currentAnchorDistance * currentAnchorDistance;
+
+  if (remainingReach <= MIN_SOLVE_DISTANCE) {
+    return 0;
+  }
+
+  const discriminant =
+    projectedDistance * projectedDistance + Math.max(0, remainingReach);
+
+  return Math.max(0, -projectedDistance + Math.sqrt(discriminant));
+}
+
+function resolveHandCoreShift(
+  endpointId: SkeletonEndpointId,
+  movingRoot: SimulationPoint,
+  joints: SkeletonJointMap,
+  target: SimulationPoint,
+  rootMaxReach: number,
+  model: SkeletonBodyModel,
+): SimulationPoint {
+  const targetDistance = distance(movingRoot, target);
+  const overflow = Math.max(0, targetDistance - rootMaxReach);
+  const targetVector = subtract(target, movingRoot);
+  const directionalDistance = Math.abs(targetVector.x) + Math.abs(targetVector.y);
+  const horizontalRatio =
+    directionalDistance > MIN_SOLVE_DISTANCE
+      ? Math.abs(targetVector.x) / directionalDistance
+      : 0;
+  const verticalRatio =
+    targetVector.y < 0 && directionalDistance > MIN_SOLVE_DISTANCE
+      ? Math.abs(targetVector.y) / directionalDistance
+      : 0;
+
+  if (
+    overflow <= MIN_SOLVE_DISTANCE ||
+    targetDistance <= MIN_SOLVE_DISTANCE
+  ) {
+    return { x: 0, y: 0 };
+  }
+
+  const reachEffort = smoothStep(
+    clampNumber(
+      (targetDistance / rootMaxReach - HAND_CORE_RESPONSE_START_REACH_RATIO) /
+        (HAND_CORE_RESPONSE_FULL_REACH_RATIO -
+          HAND_CORE_RESPONSE_START_REACH_RATIO),
+      0,
+      1,
+    ),
+  );
+
+  if (reachEffort <= MIN_SOLVE_DISTANCE) {
+    return { x: 0, y: 0 };
+  }
+
+  const direction = scaleVector(targetVector, 1 / targetDistance);
+  const anchorEndpointIds =
+    verticalRatio >= HAND_CORE_VERTICAL_DIRECTION_RATIO
+      ? (["leftFoot", "rightFoot"] as const)
+      : horizontalRatio >= HAND_CORE_HORIZONTAL_DIRECTION_RATIO
+        ? ([oppositeFootEndpointId(endpointId)].filter(
+            Boolean,
+          ) as SkeletonEndpointId[])
+        : [];
+
+  if (anchorEndpointIds.length === 0) {
+    return { x: 0, y: 0 };
+  }
+
+  const maxShiftDistance = Math.min(
+    ...anchorEndpointIds.map((anchorEndpointId) => {
+      const anchorRootId = endpointRootId(anchorEndpointId);
+      const lengths = limbLengths(model, anchorEndpointId);
+
+      return maxAnchoredShiftDistance(
+        joints[anchorRootId],
+        joints[anchorEndpointId],
+        direction,
+        lengths.first + lengths.second,
+      );
+    }),
+  );
+  const shiftDistance = Math.min(
+    overflow * HAND_CORE_FOLLOW_RATIO * reachEffort,
+    maxShiftDistance,
+  );
+
+  return scaleVector(direction, shiftDistance);
+}
+
 function resolveCoreRotationAngle(
   endpointId: SkeletonEndpointId,
   root: SimulationPoint,
@@ -608,8 +726,16 @@ export function resolveSkeletonPoseDrag(
     ? 0
     : resolveCoreReachEffort(targetDistance, maxReach);
   const overflow = Math.max(0, targetDistance - maxReach);
-  const coreShift =
-    !isHand && targetDistance > 0 && reachEffort > 0
+  const coreShift = isHand
+    ? resolveHandCoreShift(
+        input.endpointId,
+        root,
+        pose.joints,
+        input.target,
+        maxReach,
+        model,
+      )
+    : targetDistance > 0 && reachEffort > 0
       ? scaleVector(
           subtract(input.target, root),
           (overflow / targetDistance) * TORSO_FOLLOW_RATIO * reachEffort,
@@ -623,7 +749,7 @@ export function resolveSkeletonPoseDrag(
     reachEffort,
   );
   const shiftedJoints = isHand
-    ? rotateUpperCore(pose.joints, coreRotationAngle)
+    ? shiftCore(rotateUpperCore(pose.joints, coreRotationAngle), coreShift)
     : rotateCore(shiftCore(pose.joints, coreShift), coreRotationAngle);
   const rootedJoints: SkeletonJointMap = isHand
     ? {
