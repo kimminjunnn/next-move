@@ -14,24 +14,29 @@ import {
   DEFAULT_SKELETON_SCALE,
 } from "../lib/bodyModel";
 import {
+  createSkeletonStraightCoreDragState,
   createDefaultSkeletonPose,
   getEndpointPosition,
   getSkeletonCenter,
+  limitSkeletonPoseStep,
   resolveSkeletonCoreDrag,
   resolveSkeletonHeadDrag,
-  resolveSkeletonJointDrag,
-  resolveSkeletonPoseDrag,
+  resolveSkeletonJointDragWithMode,
+  resolveSkeletonPoseDragWithMode,
   translateSkeletonPose,
+  updateSkeletonStraightCoreDragState,
 } from "../lib/skeletonPoseSolver";
 import { useBodyProfileStore } from "../store/useBodyProfileStore";
 import type { SimulationPoint } from "../types/simulation";
 import type {
   SkeletonBodyModel,
   SkeletonControlJointId,
+  SkeletonDragResolutionMode,
   SkeletonEndpointId,
   SkeletonJointMap,
   SkeletonJointId,
   SkeletonPose,
+  SkeletonStraightCoreDragState,
 } from "../types/skeletonPose";
 
 type SkeletonPoseOverlayProps = {
@@ -81,6 +86,8 @@ const ENDPOINT_PRIORITY_BONUS = 0.86;
 const JOINT_PRIORITY_BONUS = 0.72;
 const HEAD_PRIORITY_BONUS = 0.62;
 const BODY_PRIORITY_BONUS = 1.18;
+const MAX_DRAG_FRAME_DISTANCE = 22;
+const MIN_DRAG_FRAME_DISTANCE = 10;
 
 type SkeletonDragTarget =
   | { kind: "endpoint"; id: SkeletonEndpointId }
@@ -239,6 +246,9 @@ export function SkeletonPoseOverlay({
   );
   const [activeControlId, setActiveControlId] = useState<string | null>(null);
   const activeDragTargetRef = useRef<SkeletonDragTarget | null>(null);
+  const activeDragModeRef = useRef<SkeletonDragResolutionMode | null>(null);
+  const activeStraightCoreDragStateRef =
+    useRef<SkeletonStraightCoreDragState | null>(null);
   const dragStartPointRef = useRef<SimulationPoint | null>(null);
   const dragStartPoseRef = useRef<SkeletonPose | null>(null);
   const bodyModelRef = useRef(bodyModel);
@@ -290,6 +300,13 @@ export function SkeletonPoseOverlay({
   }
 
   function beginEndpointDrag(endpointId: SkeletonEndpointId) {
+    activeDragModeRef.current = null;
+    activeStraightCoreDragStateRef.current =
+      createSkeletonStraightCoreDragState(
+        poseRef.current,
+        endpointId,
+        bodyModelRef.current,
+      );
     dragStartPointRef.current = getEndpointPosition(
       poseRef.current,
       endpointId,
@@ -299,18 +316,24 @@ export function SkeletonPoseOverlay({
   }
 
   function beginJointDrag(jointId: SkeletonControlJointId) {
+    activeDragModeRef.current = null;
+    activeStraightCoreDragStateRef.current = null;
     dragStartPointRef.current = poseRef.current.joints[jointId];
     dragStartPoseRef.current = poseRef.current;
     setActiveDragTarget({ kind: "joint", id: jointId });
   }
 
   function beginHeadDrag() {
+    activeDragModeRef.current = null;
+    activeStraightCoreDragStateRef.current = null;
     dragStartPointRef.current = poseRef.current.joints.head;
     dragStartPoseRef.current = poseRef.current;
     setActiveDragTarget({ kind: "head" });
   }
 
   function beginBodyDrag() {
+    activeDragModeRef.current = null;
+    activeStraightCoreDragStateRef.current = null;
     dragStartPointRef.current = null;
     dragStartPoseRef.current = poseRef.current;
     setActiveDragTarget({ kind: "body" });
@@ -444,6 +467,21 @@ export function SkeletonPoseOverlay({
   function moveActiveDrag(gestureState: PanResponderGestureState) {
     const dragTarget = activeDragTargetRef.current;
     const startPoint = dragStartPointRef.current;
+    const maxDragFrameDistance = Math.max(
+      MIN_DRAG_FRAME_DISTANCE,
+      MAX_DRAG_FRAME_DISTANCE * scaleRef.current,
+    );
+
+    function settleDragPose(nextPose: SkeletonPose) {
+      const limitedPose = limitSkeletonPoseStep(
+        poseRef.current,
+        nextPose,
+        maxDragFrameDistance,
+      );
+
+      poseRef.current = limitedPose;
+      return limitedPose;
+    }
 
     if (!dragTarget) {
       return;
@@ -467,8 +505,7 @@ export function SkeletonPoseOverlay({
         bodyModelRef.current,
       );
 
-      poseRef.current = nextPose;
-      setPose(nextPose);
+      setPose(settleDragPose(nextPose));
       return;
     }
 
@@ -485,14 +522,40 @@ export function SkeletonPoseOverlay({
       const dragStartPose = dragStartPoseRef.current ?? currentPose;
       const nextPose =
         dragTarget.kind === "endpoint"
-          ? resolveSkeletonPoseDrag(
-              dragStartPose,
-              {
-                endpointId: dragTarget.id,
-                target,
-              },
-              bodyModelRef.current,
-            )
+          ? (() => {
+              const straightCoreDragState =
+                activeStraightCoreDragStateRef.current ??
+                createSkeletonStraightCoreDragState(
+                  dragStartPose,
+                  dragTarget.id,
+                  bodyModelRef.current,
+                );
+              const nextStraightCoreDragState =
+                updateSkeletonStraightCoreDragState(
+                  dragStartPose,
+                  dragTarget.id,
+                  target,
+                  bodyModelRef.current,
+                  straightCoreDragState,
+                );
+
+              activeStraightCoreDragStateRef.current =
+                nextStraightCoreDragState;
+              const resolution = resolveSkeletonPoseDragWithMode(
+                dragStartPose,
+                {
+                  endpointId: dragTarget.id,
+                  target,
+                  previousMode: activeDragModeRef.current,
+                  straightCoreDragAllowed:
+                    nextStraightCoreDragState.canUseCoreDrag,
+                },
+                bodyModelRef.current,
+              );
+
+              activeDragModeRef.current = resolution.mode;
+              return resolution.pose;
+            })()
           : dragTarget.kind === "head"
             ? resolveSkeletonHeadDrag(
                 dragStartPoseRef.current ?? currentPose,
@@ -501,21 +564,28 @@ export function SkeletonPoseOverlay({
                 },
                 bodyModelRef.current,
               )
-            : resolveSkeletonJointDrag(
-                dragStartPose,
-                {
-                  jointId: dragTarget.id,
-                  target,
-                },
-                bodyModelRef.current,
-              );
+            : (() => {
+                const resolution = resolveSkeletonJointDragWithMode(
+                  dragStartPose,
+                  {
+                    jointId: dragTarget.id,
+                    target,
+                    previousMode: activeDragModeRef.current,
+                  },
+                  bodyModelRef.current,
+                );
 
-      poseRef.current = nextPose;
-      return nextPose;
+                activeDragModeRef.current = resolution.mode;
+                return resolution.pose;
+              })();
+
+      return settleDragPose(nextPose);
     });
   }
 
   function endEndpointDrag() {
+    activeDragModeRef.current = null;
+    activeStraightCoreDragStateRef.current = null;
     dragStartPointRef.current = null;
     dragStartPoseRef.current = null;
     setActiveDragTarget(null);
@@ -532,6 +602,8 @@ export function SkeletonPoseOverlay({
     pinchStartScaleRef.current = scaleRef.current;
     dragStartPointRef.current = null;
     dragStartPoseRef.current = null;
+    activeDragModeRef.current = null;
+    activeStraightCoreDragStateRef.current = null;
     setActiveDragTarget(null);
   }
 

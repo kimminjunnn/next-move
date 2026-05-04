@@ -7,12 +7,61 @@ const {
   resolveSkeletonCoreDrag,
   resolveSkeletonHeadDrag,
   resolveSkeletonJointDrag,
+  resolveSkeletonJointDragWithMode,
   resolveSkeletonPoseDrag,
+  resolveSkeletonPoseDragWithMode,
+  limitSkeletonPoseStep,
+  createSkeletonStraightCoreDragState,
+  updateSkeletonStraightCoreDragState,
 } = require("./skeletonPoseSolver.ts");
 
 function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
+
+test("limits every skeleton joint to the requested per-frame movement", () => {
+  const currentPose = {
+    joints: {
+      head: { x: 0, y: 0 },
+      neck: { x: 0, y: 10 },
+      torso: { x: 0, y: 20 },
+      pelvis: { x: 0, y: 30 },
+      leftShoulder: { x: -10, y: 10 },
+      rightShoulder: { x: 10, y: 10 },
+      leftElbow: { x: -20, y: 20 },
+      rightElbow: { x: 20, y: 20 },
+      leftHand: { x: -30, y: 30 },
+      rightHand: { x: 30, y: 30 },
+      leftHip: { x: -10, y: 35 },
+      rightHip: { x: 10, y: 35 },
+      leftKnee: { x: -20, y: 55 },
+      rightKnee: { x: 20, y: 55 },
+      leftFoot: { x: -25, y: 75 },
+      rightFoot: { x: 25, y: 75 },
+    },
+  };
+  const targetPose = {
+    joints: Object.fromEntries(
+      Object.entries(currentPose.joints).map(([jointId, point]) => [
+        jointId,
+        { x: point.x + 100, y: point.y - 100 },
+      ]),
+    ),
+  };
+  const limitedPose = limitSkeletonPoseStep(currentPose, targetPose, 12);
+
+  Object.keys(currentPose.joints).forEach((jointId) => {
+    assert.ok(
+      distance(currentPose.joints[jointId], limitedPose.joints[jointId]) <=
+        12.001,
+      `${jointId} should not jump farther than the frame limit`,
+    );
+  });
+  assert.deepEqual(
+    limitSkeletonPoseStep(currentPose, targetPose, 0),
+    currentPose,
+  );
+});
 
 test("keeps the foot close to its prior position when a knee is dragged into a drop-knee shape", () => {
   const model = {
@@ -620,6 +669,98 @@ test("continues as a core drag after a bent leg becomes straight during a foot d
     distance(nextPose.joints.rightKnee, expectedPose.joints.rightKnee) < 0.1,
     "foot drag after straightening should preserve the core-drag leg solve",
   );
+});
+
+test("waits for a deliberate push after a bent leg reaches straight before core dragging", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 152, y: 150 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 133, y: 188 },
+    },
+  };
+  const straightFoot = { x: 137, y: 207.78 };
+  const nearStraightTarget = { x: straightFoot.x - 0.2, y: straightFoot.y - 1 };
+  const deliberatePushTarget = {
+    x: straightFoot.x - 2.4,
+    y: straightFoot.y - 12,
+  };
+  const startState = createSkeletonStraightCoreDragState(
+    pose,
+    "rightFoot",
+    model,
+  );
+  const nearStraightState = updateSkeletonStraightCoreDragState(
+    pose,
+    "rightFoot",
+    nearStraightTarget,
+    model,
+    startState,
+  );
+  const deliberatePushState = updateSkeletonStraightCoreDragState(
+    pose,
+    "rightFoot",
+    deliberatePushTarget,
+    model,
+    nearStraightState,
+  );
+  const nearStraightPose = resolveSkeletonPoseDragWithMode(
+    pose,
+    {
+      endpointId: "rightFoot",
+      target: nearStraightTarget,
+      straightCoreDragAllowed: nearStraightState.canUseCoreDrag,
+    },
+    model,
+  );
+  const pushedPose = resolveSkeletonPoseDragWithMode(
+    pose,
+    {
+      endpointId: "rightFoot",
+      target: deliberatePushTarget,
+      straightCoreDragAllowed: deliberatePushState.canUseCoreDrag,
+    },
+    model,
+  );
+
+  assert.deepEqual(startState, {
+    hasReachedStraight: false,
+    canUseCoreDrag: false,
+  });
+  assert.deepEqual(nearStraightState, {
+    hasReachedStraight: true,
+    canUseCoreDrag: false,
+  });
+  assert.equal(nearStraightPose.mode, "pose");
+  assert.equal(deliberatePushState.canUseCoreDrag, true);
+  assert.equal(pushedPose.mode, "core");
 });
 
 test("keeps a drop-knee bend when the foot is dragged afterward", () => {
@@ -1338,6 +1479,230 @@ test("prefers the same-side planted foot when a hand pull rises from a lunge sta
     nextPose.joints.pelvis.y < pose.joints.pelvis.y - 15,
     "same-side planted leg should drive the pelvis upward",
   );
+});
+
+test("keeps hand lunge core mode through a shallow upward follow frame", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 65 },
+      rightElbow: { x: 135, y: 80 },
+      leftHand: { x: 45, y: 85 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 46, y: 112 },
+      rightKnee: { x: 128, y: 148 },
+      leftFoot: { x: 54, y: 150 },
+      rightFoot: { x: 146, y: 195 },
+    },
+  };
+
+  const autoResolution = resolveSkeletonPoseDragWithMode(
+    pose,
+    {
+      endpointId: "leftHand",
+      target: { x: -80, y: -2 },
+    },
+    model,
+  );
+  const lockedResolution = resolveSkeletonPoseDragWithMode(
+    pose,
+    {
+      endpointId: "leftHand",
+      target: { x: -80, y: -2 },
+      previousMode: "core",
+    },
+    model,
+  );
+
+  assert.ok(
+    distance(lockedResolution.pose.joints.leftHip, pose.joints.leftFoot) >
+      distance(autoResolution.pose.joints.leftHip, pose.joints.leftFoot) + 10,
+    "locked lunge mode should keep extending the same-side planted leg instead of flipping to the horizontal reach mode",
+  );
+  assert.equal(lockedResolution.mode, "core");
+});
+
+test("keeps joint core drag mode near the parallel threshold", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 50, y: 145 },
+      rightKnee: { x: 150, y: 145 },
+      leftFoot: { x: 62, y: 180 },
+      rightFoot: { x: 138, y: 180 },
+    },
+  };
+  const target = { x: 49, y: 114 };
+
+  assert.equal(
+    resolveSkeletonJointDragWithMode(
+      pose,
+      {
+        jointId: "leftElbow",
+        target,
+      },
+      model,
+    ).mode,
+    "pose",
+  );
+  assert.equal(
+    resolveSkeletonJointDragWithMode(
+      pose,
+      {
+        jointId: "leftElbow",
+        target,
+        previousMode: "core",
+      },
+      model,
+    ).mode,
+    "core",
+  );
+});
+
+test("does not core-drag a below-horizontal elbow pushed horizontally", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 160, y: 44 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 195, y: 48 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 135, y: 155 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 138, y: 205 },
+    },
+  };
+
+  const resolution = resolveSkeletonJointDragWithMode(
+    pose,
+    {
+      jointId: "rightElbow",
+      target: { x: 180, y: 44 },
+    },
+    model,
+  );
+
+  assert.equal(resolution.mode, "pose");
+  assert.deepEqual(resolution.pose.joints.torso, pose.joints.torso);
+  assert.deepEqual(resolution.pose.joints.pelvis, pose.joints.pelvis);
+});
+
+test("does not core-drag a below-horizontal straight hand pushed horizontally", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 159.9, y: 42.13 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 194.82, y: 43.99 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 135, y: 155 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 138, y: 205 },
+    },
+  };
+
+  const resolution = resolveSkeletonPoseDragWithMode(
+    pose,
+    {
+      endpointId: "rightHand",
+      target: { x: 184.82, y: 43.99 },
+    },
+    model,
+  );
+
+  assert.equal(resolution.mode, "pose");
+  assert.deepEqual(resolution.pose.joints.torso, pose.joints.torso);
+  assert.deepEqual(resolution.pose.joints.pelvis, pose.joints.pelvis);
 });
 
 test("smoothly ramps body lean near the far hand reach threshold", () => {

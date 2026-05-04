@@ -51,14 +51,30 @@ export type SkeletonPose = {
   joints: SkeletonJointMap;
 };
 
+export type SkeletonDragResolutionMode = "pose" | "core";
+
+export type SkeletonDragResolution = {
+  pose: SkeletonPose;
+  mode: SkeletonDragResolutionMode;
+};
+
+export type SkeletonStraightCoreDragState = {
+  hasReachedStraight: boolean;
+  canUseCoreDrag: boolean;
+};
+
 export type SkeletonDragInput = {
   endpointId: SkeletonEndpointId;
   target: SimulationPoint;
+  previousMode?: SkeletonDragResolutionMode | null;
+  straightCoreDragAllowed?: boolean;
 };
 
 export type SkeletonJointDragInput = {
   jointId: SkeletonControlJointId;
   target: SimulationPoint;
+  previousMode?: SkeletonDragResolutionMode | null;
+  coreDragAllowed?: boolean;
 };
 
 export type SkeletonHeadDragInput = {

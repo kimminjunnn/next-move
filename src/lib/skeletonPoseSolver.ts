@@ -4,11 +4,14 @@ import type {
   SkeletonCoreDragInput,
   SkeletonControlJointId,
   SkeletonDragInput,
+  SkeletonDragResolution,
+  SkeletonDragResolutionMode,
   SkeletonEndpointId,
   SkeletonHeadDragInput,
   SkeletonJointDragInput,
   SkeletonJointMap,
   SkeletonPose,
+  SkeletonStraightCoreDragState,
 } from "../types/skeletonPose";
 
 const TORSO_FOLLOW_RATIO = 0.38;
@@ -17,9 +20,12 @@ const HAND_CORE_RESPONSE_FULL_REACH_RATIO = 1.78;
 const HAND_CORE_RESPONSE_START_REACH_RATIO = 1.35;
 const HAND_CORE_VERTICAL_LUNGE_FULL_REACH_RATIO = 1.22;
 const HAND_CORE_VERTICAL_LUNGE_START_REACH_RATIO = 1;
+const HAND_CORE_VERTICAL_LUNGE_LOCKED_START_REACH_RATIO = 0.95;
 const HAND_CORE_VERTICAL_DIRECTION_RATIO = 0.3;
+const HAND_CORE_VERTICAL_LOCKED_DIRECTION_RATIO = 0.2;
 const HAND_CORE_VERTICAL_SUPPORT_BIAS_RATIO = 1.5;
 const HAND_CORE_HORIZONTAL_DIRECTION_RATIO = 0.58;
+const HAND_CORE_HORIZONTAL_LOCKED_DIRECTION_RATIO = 0.42;
 const ARM_SHOULDER_ROTATION_FOLLOW_RATIO = 0.82;
 const ARM_SHOULDER_ROTATION_MAX_RADIANS = 0.58;
 const ARM_SHOULDER_RESPONSE_START_REACH_RATIO = 0.82;
@@ -28,7 +34,31 @@ const LEG_CORE_RESPONSE_FULL_REACH_RATIO = 1.34;
 const LEG_CORE_RESPONSE_START_REACH_RATIO = 1;
 const HEAD_SPINE_ROTATION_MAX_RADIANS = 0.12;
 const HEAD_SPINE_FOLLOW_RATIO = 0.42;
+const ROOT_LIMB_CORE_ENTER_PARALLEL_RATIO = 0.22;
+const ROOT_LIMB_CORE_RELEASE_PARALLEL_RATIO = 0.34;
+const ARM_BELOW_HORIZONTAL_CORE_BLOCK_RATIO = 0.02;
+const HORIZONTAL_ARM_DRAG_RATIO = 0.82;
+const STRAIGHT_CORE_DRAG_REACH_RATIO = 0.98;
+const STRAIGHT_CORE_DRAG_PROMOTE_DISTANCE = 10;
 const MIN_SOLVE_DISTANCE = 0.001;
+const SKELETON_JOINT_IDS = [
+  "head",
+  "neck",
+  "torso",
+  "pelvis",
+  "leftShoulder",
+  "rightShoulder",
+  "leftElbow",
+  "rightElbow",
+  "leftHand",
+  "rightHand",
+  "leftHip",
+  "rightHip",
+  "leftKnee",
+  "rightKnee",
+  "leftFoot",
+  "rightFoot",
+] as const;
 
 function add(a: SimulationPoint, b: SimulationPoint): SimulationPoint {
   return { x: a.x + b.x, y: a.y + b.y };
@@ -71,6 +101,18 @@ function clampDistance(
     x: origin.x + (target.x - origin.x) * ratio,
     y: origin.y + (target.y - origin.y) * ratio,
   };
+}
+
+function limitPointStep(
+  current: SimulationPoint,
+  target: SimulationPoint,
+  maxDistance: number,
+) {
+  if (maxDistance <= 0) {
+    return current;
+  }
+
+  return clampDistance(current, target, maxDistance);
 }
 
 function midpoint(a: SimulationPoint, b: SimulationPoint): SimulationPoint {
@@ -444,6 +486,7 @@ function isParallelToRootLimbDrag(
   root: SimulationPoint,
   joint: SimulationPoint,
   target: SimulationPoint,
+  maxParallelRatio = ROOT_LIMB_CORE_ENTER_PARALLEL_RATIO,
 ) {
   const rootLimbVector = subtract(joint, root);
   const dragVector = subtract(target, joint);
@@ -461,7 +504,7 @@ function isParallelToRootLimbDrag(
     Math.abs(rootLimbVector.x * dragVector.y - rootLimbVector.y * dragVector.x);
   const parallelRatio = cross / (rootLimbDistance * dragDistance);
 
-  return parallelRatio < 0.22;
+  return parallelRatio < maxParallelRatio;
 }
 
 function parallelRatio(a: SimulationPoint, b: SimulationPoint) {
@@ -481,11 +524,41 @@ function dotVectors(a: SimulationPoint, b: SimulationPoint) {
   return a.x * b.x + a.y * b.y;
 }
 
+function isHorizontalDrag(vector: SimulationPoint) {
+  const totalDistance = Math.abs(vector.x) + Math.abs(vector.y);
+
+  if (totalDistance <= MIN_SOLVE_DISTANCE) {
+    return false;
+  }
+
+  return Math.abs(vector.x) / totalDistance >= HORIZONTAL_ARM_DRAG_RATIO;
+}
+
+function isBelowHorizontalArmDrag(
+  root: SimulationPoint,
+  endpoint: SimulationPoint,
+  target: SimulationPoint,
+) {
+  const armVector = subtract(endpoint, root);
+  const dragVector = subtract(target, endpoint);
+  const armDistance = distance(root, endpoint);
+
+  if (armDistance <= MIN_SOLVE_DISTANCE) {
+    return false;
+  }
+
+  return (
+    armVector.y / armDistance > ARM_BELOW_HORIZONTAL_CORE_BLOCK_RATIO &&
+    isHorizontalDrag(dragVector)
+  );
+}
+
 function resolveStraightEndpointCoreDelta(
   root: SimulationPoint,
   endpoint: SimulationPoint,
   target: SimulationPoint,
   maxReach: number,
+  maxParallelRatio = ROOT_LIMB_CORE_ENTER_PARALLEL_RATIO,
 ): SimulationPoint | null {
   const rootToEndpointDistance = distance(root, endpoint);
   const targetVector = subtract(target, root);
@@ -493,7 +566,7 @@ function resolveStraightEndpointCoreDelta(
 
   if (
     rootToEndpointDistance >= maxReach * 0.98 &&
-    isParallelToRootLimbDrag(root, endpoint, target)
+    isParallelToRootLimbDrag(root, endpoint, target, maxParallelRatio)
   ) {
     const dragVector = subtract(target, endpoint);
     const rootToEndpoint = subtract(endpoint, root);
@@ -507,7 +580,7 @@ function resolveStraightEndpointCoreDelta(
 
   const dragVector = subtract(target, endpoint);
 
-  if (parallelRatio(targetVector, dragVector) >= 0.22) {
+  if (parallelRatio(targetVector, dragVector) >= maxParallelRatio) {
     return null;
   }
 
@@ -522,6 +595,78 @@ function resolveStraightEndpointCoreDelta(
   }
 
   return coreDelta;
+}
+
+function isEndpointStraightForCoreDrag(
+  pose: SkeletonPose,
+  endpointId: SkeletonEndpointId,
+  model: SkeletonBodyModel,
+) {
+  const lengths = limbLengths(model, endpointId);
+  const maxReach = lengths.first + lengths.second;
+  const rootId = endpointRootId(endpointId);
+
+  return (
+    distance(pose.joints[rootId], pose.joints[endpointId]) >=
+    maxReach * STRAIGHT_CORE_DRAG_REACH_RATIO
+  );
+}
+
+export function createSkeletonStraightCoreDragState(
+  pose: SkeletonPose,
+  endpointId: SkeletonEndpointId,
+  model: SkeletonBodyModel,
+): SkeletonStraightCoreDragState {
+  const isStraight = isEndpointStraightForCoreDrag(pose, endpointId, model);
+
+  return {
+    hasReachedStraight: isStraight,
+    canUseCoreDrag: isStraight,
+  };
+}
+
+export function updateSkeletonStraightCoreDragState(
+  pose: SkeletonPose,
+  endpointId: SkeletonEndpointId,
+  target: SimulationPoint,
+  model: SkeletonBodyModel,
+  state: SkeletonStraightCoreDragState,
+): SkeletonStraightCoreDragState {
+  if (state.canUseCoreDrag) {
+    return state;
+  }
+
+  const lengths = limbLengths(model, endpointId);
+  const maxReach = lengths.first + lengths.second;
+  const rootId = endpointRootId(endpointId);
+  const root = pose.joints[rootId];
+  const targetDistance = distance(root, target);
+  const hasReachedStraight =
+    state.hasReachedStraight ||
+    targetDistance >= maxReach * STRAIGHT_CORE_DRAG_REACH_RATIO;
+
+  if (!hasReachedStraight) {
+    return {
+      hasReachedStraight: false,
+      canUseCoreDrag: false,
+    };
+  }
+
+  const coreDelta = resolveStraightEndpointCoreDelta(
+    root,
+    pose.joints[endpointId],
+    target,
+    maxReach,
+  );
+  const canUseCoreDrag =
+    coreDelta !== null &&
+    distance({ x: 0, y: 0 }, coreDelta) >=
+      STRAIGHT_CORE_DRAG_PROMOTE_DISTANCE;
+
+  return {
+    hasReachedStraight,
+    canUseCoreDrag,
+  };
 }
 
 function isHandEndpoint(endpointId: SkeletonEndpointId) {
@@ -591,7 +736,9 @@ function resolveHandCoreShift(
   target: SimulationPoint,
   rootMaxReach: number,
   model: SkeletonBodyModel,
+  previousMode?: SkeletonDragResolutionMode | null,
 ): SimulationPoint {
+  const isLockedCoreDrag = previousMode === "core";
   const targetDistance = distance(movingRoot, target);
   const overflow = Math.max(0, targetDistance - rootMaxReach);
   const targetVector = subtract(target, movingRoot);
@@ -613,13 +760,22 @@ function resolveHandCoreShift(
   }
 
   const reachRatio = targetDistance / rootMaxReach;
+  const verticalDirectionRatio = isLockedCoreDrag
+    ? HAND_CORE_VERTICAL_LOCKED_DIRECTION_RATIO
+    : HAND_CORE_VERTICAL_DIRECTION_RATIO;
+  const horizontalDirectionRatio = isLockedCoreDrag
+    ? HAND_CORE_HORIZONTAL_LOCKED_DIRECTION_RATIO
+    : HAND_CORE_HORIZONTAL_DIRECTION_RATIO;
   const isVerticalLunge =
-    verticalRatio >= HAND_CORE_VERTICAL_DIRECTION_RATIO;
+    verticalRatio >= verticalDirectionRatio;
+  const verticalStartReachRatio = isLockedCoreDrag
+    ? HAND_CORE_VERTICAL_LUNGE_LOCKED_START_REACH_RATIO
+    : HAND_CORE_VERTICAL_LUNGE_START_REACH_RATIO;
   const reachEffort = smoothStep(
     clampNumber(
       (reachRatio -
         (isVerticalLunge
-          ? HAND_CORE_VERTICAL_LUNGE_START_REACH_RATIO
+          ? verticalStartReachRatio
           : HAND_CORE_RESPONSE_START_REACH_RATIO)) /
         (isVerticalLunge
           ? HAND_CORE_VERTICAL_LUNGE_FULL_REACH_RATIO -
@@ -637,9 +793,9 @@ function resolveHandCoreShift(
 
   const direction = scaleVector(targetVector, 1 / targetDistance);
   const anchorEndpointIds =
-    verticalRatio >= HAND_CORE_VERTICAL_DIRECTION_RATIO
+    verticalRatio >= verticalDirectionRatio
       ? (["leftFoot", "rightFoot"] as const)
-      : horizontalRatio >= HAND_CORE_HORIZONTAL_DIRECTION_RATIO
+      : horizontalRatio >= horizontalDirectionRatio
         ? ([oppositeFootEndpointId(endpointId)].filter(
             Boolean,
           ) as SkeletonEndpointId[])
@@ -845,11 +1001,11 @@ function resolveAnchoredLimbs(
   return resolved;
 }
 
-export function resolveSkeletonPoseDrag(
+export function resolveSkeletonPoseDragWithMode(
   pose: SkeletonPose,
   input: SkeletonDragInput,
   model: SkeletonBodyModel,
-): SkeletonPose {
+): SkeletonDragResolution {
   const rootId = endpointRootId(input.endpointId);
   const jointId = endpointJointId(input.endpointId);
   const lengths = limbLengths(model, input.endpointId);
@@ -858,24 +1014,42 @@ export function resolveSkeletonPoseDrag(
   const targetDistance = distance(root, input.target);
   const isHand = isHandEndpoint(input.endpointId);
   const isFoot = isFootEndpoint(input.endpointId);
+  const maxParallelRatio =
+    input.previousMode === "core"
+      ? ROOT_LIMB_CORE_RELEASE_PARALLEL_RATIO
+      : ROOT_LIMB_CORE_ENTER_PARALLEL_RATIO;
+  const straightCoreDragAllowed = input.straightCoreDragAllowed !== false;
+  const isBlockedBelowHorizontalArmDrag =
+    isHand &&
+    isBelowHorizontalArmDrag(
+      root,
+      pose.joints[input.endpointId],
+      input.target,
+    );
   const straightEndpointCoreDelta =
     isHand || isFoot
-    ? resolveStraightEndpointCoreDelta(
-        root,
-        pose.joints[input.endpointId],
-        input.target,
-        maxReach,
-      )
+    ? straightCoreDragAllowed && !isBlockedBelowHorizontalArmDrag
+      ? resolveStraightEndpointCoreDelta(
+          root,
+          pose.joints[input.endpointId],
+          input.target,
+          maxReach,
+          maxParallelRatio,
+        )
+      : null
     : null;
 
   if (straightEndpointCoreDelta) {
-    return resolveSkeletonCoreDrag(
-      pose,
-      {
-        delta: straightEndpointCoreDelta,
-      },
-      model,
-    );
+    return {
+      pose: resolveSkeletonCoreDrag(
+        pose,
+        {
+          delta: straightEndpointCoreDelta,
+        },
+        model,
+      ),
+      mode: "core",
+    };
   }
 
   const reachEffort = isHand
@@ -898,6 +1072,7 @@ export function resolveSkeletonPoseDrag(
         input.target,
         maxReach,
         model,
+        input.previousMode,
       )
     : targetDistance > 0 && reachEffort > 0
       ? scaleVector(
@@ -949,33 +1124,64 @@ export function resolveSkeletonPoseDrag(
   };
 
   return {
-    joints: resolveRestingLimbs(nextJoints, model, input.endpointId),
+    pose: {
+      joints: resolveRestingLimbs(nextJoints, model, input.endpointId),
+    },
+    mode: distance({ x: 0, y: 0 }, coreShift) > MIN_SOLVE_DISTANCE
+      ? "core"
+      : "pose",
   };
 }
 
-export function resolveSkeletonJointDrag(
+export function resolveSkeletonPoseDrag(
+  pose: SkeletonPose,
+  input: SkeletonDragInput,
+  model: SkeletonBodyModel,
+): SkeletonPose {
+  return resolveSkeletonPoseDragWithMode(pose, input, model).pose;
+}
+
+export function resolveSkeletonJointDragWithMode(
   pose: SkeletonPose,
   input: SkeletonJointDragInput,
   model: SkeletonBodyModel,
-): SkeletonPose {
+): SkeletonDragResolution {
   const endpointId = jointEndpointId(input.jointId);
   const rootId = endpointRootId(endpointId);
   const lengths = limbLengths(model, endpointId);
+  const maxParallelRatio =
+    input.previousMode === "core"
+      ? ROOT_LIMB_CORE_RELEASE_PARALLEL_RATIO
+      : ROOT_LIMB_CORE_ENTER_PARALLEL_RATIO;
+  const coreDragAllowed = input.coreDragAllowed !== false;
+  const isBlockedBelowHorizontalArmDrag =
+    isHandEndpoint(endpointId) &&
+    isBelowHorizontalArmDrag(
+      pose.joints[rootId],
+      pose.joints[input.jointId],
+      input.target,
+    );
 
   if (
+    coreDragAllowed &&
+    !isBlockedBelowHorizontalArmDrag &&
     isParallelToRootLimbDrag(
       pose.joints[rootId],
       pose.joints[input.jointId],
       input.target,
+      maxParallelRatio,
     )
   ) {
-    return resolveSkeletonCoreDrag(
-      pose,
-      {
-        delta: subtract(input.target, pose.joints[input.jointId]),
-      },
-      model,
-    );
+    return {
+      pose: resolveSkeletonCoreDrag(
+        pose,
+        {
+          delta: subtract(input.target, pose.joints[input.jointId]),
+        },
+        model,
+      ),
+      mode: "core",
+    };
   }
 
   const direction = normalizeOrFallback(
@@ -998,8 +1204,19 @@ export function resolveSkeletonJointDrag(
   };
 
   return {
-    joints: resolveRestingLimbs(nextJoints, model, endpointId),
+    pose: {
+      joints: resolveRestingLimbs(nextJoints, model, endpointId),
+    },
+    mode: "pose",
   };
+}
+
+export function resolveSkeletonJointDrag(
+  pose: SkeletonPose,
+  input: SkeletonJointDragInput,
+  model: SkeletonBodyModel,
+): SkeletonPose {
+  return resolveSkeletonJointDragWithMode(pose, input, model).pose;
 }
 
 export function resolveSkeletonCoreDrag(
@@ -1056,6 +1273,24 @@ export function resolveSkeletonHeadDrag(
   return {
     joints: resolveAnchoredLimbs(nextJoints, pose.joints, model),
   };
+}
+
+export function limitSkeletonPoseStep(
+  currentPose: SkeletonPose,
+  targetPose: SkeletonPose,
+  maxJointDistance: number,
+): SkeletonPose {
+  const joints = { ...targetPose.joints };
+
+  SKELETON_JOINT_IDS.forEach((jointId) => {
+    joints[jointId] = limitPointStep(
+      currentPose.joints[jointId],
+      targetPose.joints[jointId],
+      maxJointDistance,
+    );
+  });
+
+  return { joints };
 }
 
 export function translateSkeletonPose(
