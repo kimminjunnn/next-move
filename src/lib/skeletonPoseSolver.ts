@@ -437,6 +437,34 @@ function angleBetweenVectors(from: SimulationPoint, to: SimulationPoint) {
   return Math.atan2(cross, dot);
 }
 
+function isKneeJoint(jointId: SkeletonControlJointId) {
+  return jointId === "leftKnee" || jointId === "rightKnee";
+}
+
+function isParallelToThighDrag(
+  root: SimulationPoint,
+  joint: SimulationPoint,
+  target: SimulationPoint,
+) {
+  const thighVector = subtract(joint, root);
+  const dragVector = subtract(target, joint);
+  const thighDistance = distance({ x: 0, y: 0 }, thighVector);
+  const dragDistance = distance({ x: 0, y: 0 }, dragVector);
+
+  if (
+    thighDistance <= MIN_SOLVE_DISTANCE ||
+    dragDistance <= MIN_SOLVE_DISTANCE
+  ) {
+    return false;
+  }
+
+  const cross =
+    Math.abs(thighVector.x * dragVector.y - thighVector.y * dragVector.x);
+  const parallelRatio = cross / (thighDistance * dragDistance);
+
+  return parallelRatio < 0.22;
+}
+
 function isHandEndpoint(endpointId: SkeletonEndpointId) {
   return endpointId === "leftHand" || endpointId === "rightHand";
 }
@@ -797,6 +825,24 @@ export function resolveSkeletonJointDrag(
   const endpointId = jointEndpointId(input.jointId);
   const rootId = endpointRootId(endpointId);
   const lengths = limbLengths(model, endpointId);
+
+  if (
+    isKneeJoint(input.jointId) &&
+    isParallelToThighDrag(
+      pose.joints[rootId],
+      pose.joints[input.jointId],
+      input.target,
+    )
+  ) {
+    return resolveSkeletonCoreDrag(
+      pose,
+      {
+        delta: subtract(input.target, pose.joints[input.jointId]),
+      },
+      model,
+    );
+  }
+
   const direction = normalizeOrFallback(
     subtract(input.target, pose.joints[rootId]),
     bendDirection(endpointId),
