@@ -1067,6 +1067,279 @@ test("leans the body into a far hand reach while keeping the opposite foot ancho
   );
 });
 
+test("rises through bent legs when a hand is pulled upward", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 50, y: 145 },
+      rightKnee: { x: 150, y: 145 },
+      leftFoot: { x: 62, y: 180 },
+      rightFoot: { x: 138, y: 180 },
+    },
+  };
+
+  const nextPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "rightHand",
+      target: { x: 150, y: -60 },
+    },
+    model,
+  );
+
+  assert.ok(
+    distance(nextPose.joints.leftFoot, pose.joints.leftFoot) < 1,
+    "left foot should stay planted while the body rises",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightFoot, pose.joints.rightFoot) < 1,
+    "right foot should stay planted while the body rises",
+  );
+  assert.ok(
+    nextPose.joints.pelvis.y < pose.joints.pelvis.y - 20,
+    "hand pull should raise the pelvis through leg extension",
+  );
+  assert.ok(
+    distance(nextPose.joints.leftHip, nextPose.joints.leftFoot) >
+      distance(pose.joints.leftHip, pose.joints.leftFoot),
+    "left leg should extend as the body rises",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightHip, nextPose.joints.rightFoot) >
+      distance(pose.joints.rightHip, pose.joints.rightFoot),
+    "right leg should extend as the body rises",
+  );
+  assert.ok(
+    Math.max(
+      distance(nextPose.joints.leftHip, nextPose.joints.leftFoot),
+      distance(nextPose.joints.rightHip, nextPose.joints.rightFoot),
+    ) >
+      model.thigh + model.shin - 1,
+    "hand pull should rise until a planted leg reaches its natural extension limit",
+  );
+  assert.ok(
+    distance(nextPose.joints.leftHip, nextPose.joints.leftFoot) <=
+      model.thigh + model.shin + 0.001,
+    "left leg should not stretch past its bone lengths",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightHip, nextPose.joints.rightFoot) <=
+      model.thigh + model.shin + 0.001,
+    "right leg should not stretch past its bone lengths",
+  );
+});
+
+test("rises through the available planted foot when the other leg is already extended", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 50, y: 145 },
+      rightKnee: { x: 126, y: 154 },
+      leftFoot: { x: 62, y: 180 },
+      rightFoot: { x: 137, y: 208 },
+    },
+  };
+
+  const nextPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "leftHand",
+      target: { x: 64, y: -60 },
+    },
+    model,
+  );
+
+  assert.ok(
+    distance(nextPose.joints.leftFoot, pose.joints.leftFoot) < 1,
+    "available planted foot should stay anchored while the body rises",
+  );
+  assert.ok(
+    nextPose.joints.pelvis.y < pose.joints.pelvis.y - 15,
+    "hand pull should raise the pelvis through the available planted leg",
+  );
+  assert.ok(
+    distance(nextPose.joints.leftHip, nextPose.joints.leftFoot) >
+      distance(pose.joints.leftHip, pose.joints.leftFoot),
+    "available planted leg should extend as the body rises",
+  );
+  assert.ok(
+    distance(nextPose.joints.leftHip, nextPose.joints.leftFoot) <=
+      model.thigh + model.shin + 0.001,
+    "available planted leg should not stretch past its bone lengths",
+  );
+});
+
+test("rises through the available planted foot when a hand is pulled diagonally upward", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 50, y: 145 },
+      rightKnee: { x: 126, y: 154 },
+      leftFoot: { x: 62, y: 180 },
+      rightFoot: { x: 137, y: 208 },
+    },
+  };
+
+  const nextPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "leftHand",
+      target: { x: -35, y: -20 },
+    },
+    model,
+  );
+
+  assert.ok(
+    distance(nextPose.joints.leftFoot, pose.joints.leftFoot) < 1,
+    "available planted foot should stay anchored during a diagonal upward hand pull",
+  );
+  assert.ok(
+    nextPose.joints.pelvis.y < pose.joints.pelvis.y - 10,
+    "diagonal upward hand pull should raise the pelvis through leg extension",
+  );
+  assert.ok(
+    distance(nextPose.joints.leftHip, nextPose.joints.leftFoot) >
+      distance(pose.joints.leftHip, pose.joints.leftFoot),
+    "available planted leg should extend during a diagonal upward hand pull",
+  );
+});
+
+test("prefers the same-side planted foot when a hand pull rises from a lunge stance", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 65 },
+      rightElbow: { x: 135, y: 80 },
+      leftHand: { x: 45, y: 85 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 46, y: 112 },
+      rightKnee: { x: 128, y: 148 },
+      leftFoot: { x: 54, y: 150 },
+      rightFoot: { x: 146, y: 195 },
+    },
+  };
+  const leftLegBefore = distance(pose.joints.leftHip, pose.joints.leftFoot);
+
+  const nextPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "leftHand",
+      target: { x: -35, y: -45 },
+    },
+    model,
+  );
+
+  assert.ok(
+    distance(nextPose.joints.leftFoot, pose.joints.leftFoot) < 1,
+    "same-side planted foot should stay anchored while the hand pull lifts the body",
+  );
+  assert.ok(
+    distance(nextPose.joints.leftHip, nextPose.joints.leftFoot) >
+      leftLegBefore + 20,
+    "same-side planted leg should visibly extend as the body rises",
+  );
+  assert.ok(
+    nextPose.joints.pelvis.y < pose.joints.pelvis.y - 15,
+    "same-side planted leg should drive the pelvis upward",
+  );
+});
+
 test("smoothly ramps body lean near the far hand reach threshold", () => {
   const model = {
     height: 170,

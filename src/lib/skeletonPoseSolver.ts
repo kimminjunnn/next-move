@@ -15,7 +15,10 @@ const TORSO_FOLLOW_RATIO = 0.38;
 const HAND_CORE_FOLLOW_RATIO = 0.86;
 const HAND_CORE_RESPONSE_FULL_REACH_RATIO = 1.78;
 const HAND_CORE_RESPONSE_START_REACH_RATIO = 1.35;
-const HAND_CORE_VERTICAL_DIRECTION_RATIO = 0.58;
+const HAND_CORE_VERTICAL_LUNGE_FULL_REACH_RATIO = 1.22;
+const HAND_CORE_VERTICAL_LUNGE_START_REACH_RATIO = 1;
+const HAND_CORE_VERTICAL_DIRECTION_RATIO = 0.3;
+const HAND_CORE_VERTICAL_SUPPORT_BIAS_RATIO = 1.5;
 const HAND_CORE_HORIZONTAL_DIRECTION_RATIO = 0.58;
 const ARM_SHOULDER_ROTATION_FOLLOW_RATIO = 0.82;
 const ARM_SHOULDER_ROTATION_MAX_RADIANS = 0.58;
@@ -609,11 +612,20 @@ function resolveHandCoreShift(
     return { x: 0, y: 0 };
   }
 
+  const reachRatio = targetDistance / rootMaxReach;
+  const isVerticalLunge =
+    verticalRatio >= HAND_CORE_VERTICAL_DIRECTION_RATIO;
   const reachEffort = smoothStep(
     clampNumber(
-      (targetDistance / rootMaxReach - HAND_CORE_RESPONSE_START_REACH_RATIO) /
-        (HAND_CORE_RESPONSE_FULL_REACH_RATIO -
-          HAND_CORE_RESPONSE_START_REACH_RATIO),
+      (reachRatio -
+        (isVerticalLunge
+          ? HAND_CORE_VERTICAL_LUNGE_START_REACH_RATIO
+          : HAND_CORE_RESPONSE_START_REACH_RATIO)) /
+        (isVerticalLunge
+          ? HAND_CORE_VERTICAL_LUNGE_FULL_REACH_RATIO -
+            HAND_CORE_VERTICAL_LUNGE_START_REACH_RATIO
+          : HAND_CORE_RESPONSE_FULL_REACH_RATIO -
+            HAND_CORE_RESPONSE_START_REACH_RATIO),
       0,
       1,
     ),
@@ -637,21 +649,40 @@ function resolveHandCoreShift(
     return { x: 0, y: 0 };
   }
 
-  const maxShiftDistance = Math.min(
-    ...anchorEndpointIds.map((anchorEndpointId) => {
-      const anchorRootId = endpointRootId(anchorEndpointId);
-      const lengths = limbLengths(model, anchorEndpointId);
+  const anchorShiftDistances = anchorEndpointIds.map((anchorEndpointId) => {
+    const anchorRootId = endpointRootId(anchorEndpointId);
+    const lengths = limbLengths(model, anchorEndpointId);
 
-      return maxAnchoredShiftDistance(
-        joints[anchorRootId],
-        joints[anchorEndpointId],
-        direction,
-        lengths.first + lengths.second,
-      );
-    }),
+    return maxAnchoredShiftDistance(
+      joints[anchorRootId],
+      joints[anchorEndpointId],
+      direction,
+      lengths.first + lengths.second,
+    );
+  });
+  const availableAnchorShiftDistances = anchorShiftDistances.filter(
+    (shiftDistance) => shiftDistance > MIN_SOLVE_DISTANCE,
   );
+  const strongestAnchorShiftDistance =
+    availableAnchorShiftDistances.length > 0
+      ? Math.max(...availableAnchorShiftDistances)
+      : 0;
+  const weakestAnchorShiftDistance =
+    availableAnchorShiftDistances.length > 0
+      ? Math.min(...availableAnchorShiftDistances)
+      : 0;
+  const hasDominantVerticalSupport =
+    isVerticalLunge &&
+    strongestAnchorShiftDistance > 0 &&
+    (availableAnchorShiftDistances.length < anchorShiftDistances.length ||
+      strongestAnchorShiftDistance >=
+        weakestAnchorShiftDistance * HAND_CORE_VERTICAL_SUPPORT_BIAS_RATIO);
+  const maxShiftDistance =
+    hasDominantVerticalSupport
+      ? strongestAnchorShiftDistance
+      : Math.min(...anchorShiftDistances);
   const shiftDistance = Math.min(
-    overflow * HAND_CORE_FOLLOW_RATIO * reachEffort,
+    overflow * (isVerticalLunge ? 1 : HAND_CORE_FOLLOW_RATIO) * reachEffort,
     maxShiftDistance,
   );
 
