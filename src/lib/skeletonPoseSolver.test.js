@@ -126,8 +126,14 @@ test("treats a knee drag parallel to the thigh like a core drag", () => {
     model,
   );
 
-  assert.deepEqual(nextPose.joints.torso, expectedPose.joints.torso);
-  assert.deepEqual(nextPose.joints.pelvis, expectedPose.joints.pelvis);
+  assert.ok(
+    distance(nextPose.joints.torso, expectedPose.joints.torso) < 0.1,
+    "foot drag after straightening should move the torso like a core drag",
+  );
+  assert.ok(
+    distance(nextPose.joints.pelvis, expectedPose.joints.pelvis) < 0.1,
+    "foot drag after straightening should move the pelvis like a core drag",
+  );
   assert.deepEqual(nextPose.joints.rightHip, expectedPose.joints.rightHip);
   assert.ok(
     distance(nextPose.joints.rightFoot, expectedPose.joints.rightFoot) < 0.001,
@@ -136,6 +142,483 @@ test("treats a knee drag parallel to the thigh like a core drag", () => {
   assert.ok(
     distance(nextPose.joints.rightKnee, expectedPose.joints.rightKnee) < 0.001,
     "parallel thigh knee drag should resolve the knee exactly like a core drag",
+  );
+});
+
+test("treats an elbow drag parallel to the upper arm like a core drag", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 135, y: 155 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 138, y: 205 },
+    },
+  };
+  const delta = { x: 4, y: 7 };
+  const expectedPose = resolveSkeletonCoreDrag(
+    pose,
+    {
+      delta,
+    },
+    model,
+  );
+
+  const nextPose = resolveSkeletonJointDrag(
+    pose,
+    {
+      jointId: "rightElbow",
+      target: {
+        x: pose.joints.rightElbow.x + delta.x,
+        y: pose.joints.rightElbow.y + delta.y,
+      },
+    },
+    model,
+  );
+
+  assert.ok(
+    distance(nextPose.joints.torso, expectedPose.joints.torso) < 0.1,
+    "foot drag after straightening should move the torso like a core drag",
+  );
+  assert.ok(
+    distance(nextPose.joints.pelvis, expectedPose.joints.pelvis) < 0.1,
+    "foot drag after straightening should move the pelvis like a core drag",
+  );
+  assert.deepEqual(nextPose.joints.rightShoulder, expectedPose.joints.rightShoulder);
+  assert.ok(
+    distance(nextPose.joints.rightHand, expectedPose.joints.rightHand) < 0.001,
+    "parallel upper-arm elbow drag should keep the same hand anchoring as a core drag",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightElbow, expectedPose.joints.rightElbow) < 0.001,
+    "parallel upper-arm elbow drag should resolve the elbow exactly like a core drag",
+  );
+});
+
+test("treats a hand push toward the body along a straight arm like a core drag", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 74.64 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 157.5, y: 104.95 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 135, y: 155 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 138, y: 205 },
+    },
+  };
+  const delta = { x: -4, y: -7 };
+  const expectedPose = resolveSkeletonCoreDrag(
+    pose,
+    {
+      delta,
+    },
+    model,
+  );
+
+  const nextPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "rightHand",
+      target: {
+        x: pose.joints.rightHand.x + delta.x,
+        y: pose.joints.rightHand.y + delta.y,
+      },
+    },
+    model,
+  );
+
+  assert.deepEqual(nextPose.joints.torso, expectedPose.joints.torso);
+  assert.deepEqual(nextPose.joints.pelvis, expectedPose.joints.pelvis);
+  assert.deepEqual(nextPose.joints.rightShoulder, expectedPose.joints.rightShoulder);
+  assert.ok(
+    distance(nextPose.joints.rightHand, expectedPose.joints.rightHand) < 0.001,
+    "parallel straight-arm hand drag should keep the same hand anchoring as a core drag",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightElbow, expectedPose.joints.rightElbow) < 0.001,
+    "parallel straight-arm hand drag should resolve the elbow exactly like a core drag",
+  );
+});
+
+test("does not core-drag when a straight arm hand is pulled away from the body", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 74.64 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 157.5, y: 104.95 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 135, y: 155 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 138, y: 205 },
+    },
+  };
+
+  const nextPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "rightHand",
+      target: {
+        x: pose.joints.rightHand.x + 4,
+        y: pose.joints.rightHand.y + 7,
+      },
+    },
+    model,
+  );
+
+  assert.deepEqual(nextPose.joints.torso, pose.joints.torso);
+  assert.deepEqual(nextPose.joints.pelvis, pose.joints.pelvis);
+  assert.ok(
+    distance(nextPose.joints.rightShoulder, nextPose.joints.rightHand) <=
+      model.upperArm + model.forearm + 0.001,
+    "pulling away from an already straight arm should not stretch past the arm reach limit",
+  );
+});
+
+test("continues as a core drag after a bent arm becomes straight during a hand drag", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 148, y: 54 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 156, y: 88 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 135, y: 155 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 138, y: 205 },
+    },
+  };
+  const straightHand = { x: 165, y: 100 };
+  const delta = { x: -6, y: -8 };
+  const expectedPose = resolveSkeletonCoreDrag(
+    pose,
+    {
+      delta,
+    },
+    model,
+  );
+
+  const nextPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "rightHand",
+      target: {
+        x: straightHand.x + delta.x,
+        y: straightHand.y + delta.y,
+      },
+    },
+    model,
+  );
+
+  assert.deepEqual(nextPose.joints.torso, expectedPose.joints.torso);
+  assert.deepEqual(nextPose.joints.pelvis, expectedPose.joints.pelvis);
+  assert.ok(
+    distance(nextPose.joints.rightHand, expectedPose.joints.rightHand) < 0.001,
+    "hand drag should use only the movement after straightening as the core drag delta",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightElbow, expectedPose.joints.rightElbow) < 0.001,
+    "hand drag after straightening should preserve the core-drag arm solve",
+  );
+});
+
+test("treats a foot push toward the body along a straight leg like a core drag", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 127, y: 159 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 137, y: 208 },
+    },
+  };
+  const delta = { x: -2, y: -10 };
+  const expectedPose = resolveSkeletonCoreDrag(
+    pose,
+    {
+      delta,
+    },
+    model,
+  );
+
+  const nextPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "rightFoot",
+      target: {
+        x: pose.joints.rightFoot.x + delta.x,
+        y: pose.joints.rightFoot.y + delta.y,
+      },
+    },
+    model,
+  );
+
+  assert.ok(
+    distance(nextPose.joints.torso, expectedPose.joints.torso) < 0.1,
+    "foot drag after straightening should move the torso like a core drag",
+  );
+  assert.ok(
+    distance(nextPose.joints.pelvis, expectedPose.joints.pelvis) < 0.1,
+    "foot drag after straightening should move the pelvis like a core drag",
+  );
+  assert.deepEqual(nextPose.joints.rightHip, expectedPose.joints.rightHip);
+  assert.ok(
+    distance(nextPose.joints.rightFoot, expectedPose.joints.rightFoot) < 0.001,
+    "parallel straight-leg foot push should keep the same foot anchoring as a core drag",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightKnee, expectedPose.joints.rightKnee) < 0.001,
+    "parallel straight-leg foot push should resolve the knee exactly like a core drag",
+  );
+});
+
+test("does not core-drag when a straight leg foot is pulled away from the body", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 127, y: 159 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 137, y: 208 },
+    },
+  };
+
+  const nextPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "rightFoot",
+      target: {
+        x: pose.joints.rightFoot.x + 2,
+        y: pose.joints.rightFoot.y + 10,
+      },
+    },
+    model,
+  );
+
+  assert.deepEqual(nextPose.joints.torso, pose.joints.torso);
+  assert.deepEqual(nextPose.joints.pelvis, pose.joints.pelvis);
+  assert.ok(
+    distance(nextPose.joints.rightHip, nextPose.joints.rightFoot) <=
+      model.thigh + model.shin + 0.001,
+    "pulling away from an already straight leg should not stretch past the leg reach limit",
+  );
+});
+
+test("continues as a core drag after a bent leg becomes straight during a foot drag", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 152, y: 150 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 133, y: 188 },
+    },
+  };
+  const straightFoot = { x: 137, y: 207.78 };
+  const delta = { x: -2, y: -10 };
+  const expectedPose = resolveSkeletonCoreDrag(
+    pose,
+    {
+      delta,
+    },
+    model,
+  );
+
+  const nextPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "rightFoot",
+      target: {
+        x: straightFoot.x + delta.x,
+        y: straightFoot.y + delta.y,
+      },
+    },
+    model,
+  );
+
+  assert.ok(
+    distance(nextPose.joints.torso, expectedPose.joints.torso) < 0.1,
+    "foot drag after straightening should move the torso like a core drag",
+  );
+  assert.ok(
+    distance(nextPose.joints.pelvis, expectedPose.joints.pelvis) < 0.1,
+    "foot drag after straightening should move the pelvis like a core drag",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightFoot, expectedPose.joints.rightFoot) < 0.001,
+    "foot drag should use only the movement after straightening as the core drag delta",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightKnee, expectedPose.joints.rightKnee) < 0.1,
+    "foot drag after straightening should preserve the core-drag leg solve",
   );
 });
 

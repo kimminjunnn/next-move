@@ -437,36 +437,112 @@ function angleBetweenVectors(from: SimulationPoint, to: SimulationPoint) {
   return Math.atan2(cross, dot);
 }
 
-function isKneeJoint(jointId: SkeletonControlJointId) {
-  return jointId === "leftKnee" || jointId === "rightKnee";
-}
-
-function isParallelToThighDrag(
+function isParallelToRootLimbDrag(
   root: SimulationPoint,
   joint: SimulationPoint,
   target: SimulationPoint,
 ) {
-  const thighVector = subtract(joint, root);
+  const rootLimbVector = subtract(joint, root);
   const dragVector = subtract(target, joint);
-  const thighDistance = distance({ x: 0, y: 0 }, thighVector);
+  const rootLimbDistance = distance({ x: 0, y: 0 }, rootLimbVector);
   const dragDistance = distance({ x: 0, y: 0 }, dragVector);
 
   if (
-    thighDistance <= MIN_SOLVE_DISTANCE ||
+    rootLimbDistance <= MIN_SOLVE_DISTANCE ||
     dragDistance <= MIN_SOLVE_DISTANCE
   ) {
     return false;
   }
 
   const cross =
-    Math.abs(thighVector.x * dragVector.y - thighVector.y * dragVector.x);
-  const parallelRatio = cross / (thighDistance * dragDistance);
+    Math.abs(rootLimbVector.x * dragVector.y - rootLimbVector.y * dragVector.x);
+  const parallelRatio = cross / (rootLimbDistance * dragDistance);
 
   return parallelRatio < 0.22;
 }
 
+function parallelRatio(a: SimulationPoint, b: SimulationPoint) {
+  const aDistance = distance({ x: 0, y: 0 }, a);
+  const bDistance = distance({ x: 0, y: 0 }, b);
+
+  if (aDistance <= MIN_SOLVE_DISTANCE || bDistance <= MIN_SOLVE_DISTANCE) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const cross = Math.abs(a.x * b.y - a.y * b.x);
+
+  return cross / (aDistance * bDistance);
+}
+
+function dotVectors(a: SimulationPoint, b: SimulationPoint) {
+  return a.x * b.x + a.y * b.y;
+}
+
+function resolveStraightEndpointCoreDelta(
+  root: SimulationPoint,
+  endpoint: SimulationPoint,
+  target: SimulationPoint,
+  maxReach: number,
+): SimulationPoint | null {
+  const rootToEndpointDistance = distance(root, endpoint);
+  const targetVector = subtract(target, root);
+  const targetDistance = distance(root, target);
+
+  if (
+    rootToEndpointDistance >= maxReach * 0.98 &&
+    isParallelToRootLimbDrag(root, endpoint, target)
+  ) {
+    const dragVector = subtract(target, endpoint);
+    const rootToEndpoint = subtract(endpoint, root);
+
+    return dotVectors(dragVector, rootToEndpoint) < 0 ? dragVector : null;
+  }
+
+  if (targetDistance < maxReach * 0.82 || targetDistance > maxReach) {
+    return null;
+  }
+
+  const dragVector = subtract(target, endpoint);
+
+  if (parallelRatio(targetVector, dragVector) >= 0.22) {
+    return null;
+  }
+
+  const straightEndpoint = add(
+    root,
+    scaleVector(targetVector, maxReach / targetDistance),
+  );
+  const coreDelta = subtract(target, straightEndpoint);
+
+  if (distance({ x: 0, y: 0 }, coreDelta) <= MIN_SOLVE_DISTANCE) {
+    return null;
+  }
+
+  return coreDelta;
+}
+
 function isHandEndpoint(endpointId: SkeletonEndpointId) {
   return endpointId === "leftHand" || endpointId === "rightHand";
+}
+
+function isFootEndpoint(endpointId: SkeletonEndpointId) {
+  return endpointId === "leftFoot" || endpointId === "rightFoot";
+}
+
+function isStraightEndpointPullAway(
+  root: SimulationPoint,
+  endpoint: SimulationPoint,
+  target: SimulationPoint,
+  maxReach: number,
+) {
+  if (
+    distance(root, endpoint) < maxReach * 0.98 ||
+    !isParallelToRootLimbDrag(root, endpoint, target)
+  ) {
+    return false;
+  }
+
+  return dotVectors(subtract(target, endpoint), subtract(endpoint, root)) > 0;
 }
 
 function oppositeFootEndpointId(
@@ -750,8 +826,37 @@ export function resolveSkeletonPoseDrag(
   const root = pose.joints[rootId];
   const targetDistance = distance(root, input.target);
   const isHand = isHandEndpoint(input.endpointId);
+  const isFoot = isFootEndpoint(input.endpointId);
+  const straightEndpointCoreDelta =
+    isHand || isFoot
+    ? resolveStraightEndpointCoreDelta(
+        root,
+        pose.joints[input.endpointId],
+        input.target,
+        maxReach,
+      )
+    : null;
+
+  if (straightEndpointCoreDelta) {
+    return resolveSkeletonCoreDrag(
+      pose,
+      {
+        delta: straightEndpointCoreDelta,
+      },
+      model,
+    );
+  }
+
   const reachEffort = isHand
     ? 0
+    : isFoot &&
+        isStraightEndpointPullAway(
+          root,
+          pose.joints[input.endpointId],
+          input.target,
+          maxReach,
+        )
+      ? 0
     : resolveCoreReachEffort(targetDistance, maxReach);
   const overflow = Math.max(0, targetDistance - maxReach);
   const coreShift = isHand
@@ -827,8 +932,7 @@ export function resolveSkeletonJointDrag(
   const lengths = limbLengths(model, endpointId);
 
   if (
-    isKneeJoint(input.jointId) &&
-    isParallelToThighDrag(
+    isParallelToRootLimbDrag(
       pose.joints[rootId],
       pose.joints[input.jointId],
       input.target,
