@@ -5,6 +5,7 @@ const test = require("node:test");
 
 const {
   resolveSkeletonCoreDrag,
+  resolveSkeletonHeadDrag,
   resolveSkeletonJointDrag,
   resolveSkeletonPoseDrag,
 } = require("./skeletonPoseSolver.ts");
@@ -134,6 +135,75 @@ test("keeps a drop-knee bend when the foot is dragged afterward", () => {
   );
 });
 
+test("keeps a drop-knee bend when another handler is dragged afterward", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 100, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 120, y: 160 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 124.72, y: 180.17 },
+    },
+  };
+  const dropKneePose = resolveSkeletonJointDrag(
+    pose,
+    {
+      jointId: "rightKnee",
+      target: { x: 80, y: 156.57 },
+    },
+    model,
+  );
+  const nextPose = resolveSkeletonPoseDrag(
+    dropKneePose,
+    {
+      endpointId: "rightHand",
+      target: {
+        x: dropKneePose.joints.rightHand.x + 8,
+        y: dropKneePose.joints.rightHand.y - 4,
+      },
+    },
+    model,
+  );
+
+  assert.ok(
+    dropKneePose.joints.rightKnee.x < dropKneePose.joints.rightHip.x,
+    "setup should create an inward right drop-knee",
+  );
+  assert.ok(
+    nextPose.joints.rightKnee.x < nextPose.joints.rightHip.x,
+    "right knee should stay inside the right hip after another handler moves",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightKnee, dropKneePose.joints.rightKnee) < 8,
+    "right knee should not pop back to the default bend",
+  );
+});
+
 test("moves the core while keeping reachable hands and feet anchored", () => {
   const model = {
     height: 170,
@@ -196,4 +266,590 @@ test("moves the core while keeping reachable hands and feet anchored", () => {
     distance(nextPose.joints.rightFoot, pose.joints.rightFoot) < 0.001,
     "right foot should stay on the same hold when still reachable",
   );
+});
+
+test("lets the shoulder follow a near-full hand reach without moving the torso", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 135, y: 155 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 138, y: 205 },
+    },
+  };
+
+  const nextPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "rightHand",
+      target: { x: 190, y: 40 },
+    },
+    model,
+  );
+
+  assert.deepEqual(nextPose.joints.pelvis, pose.joints.pelvis);
+  assert.ok(
+    distance(nextPose.joints.neck, pose.joints.neck) < 0.5,
+    "near-full hand reach should not rotate the neck",
+  );
+  assert.ok(
+    distance(nextPose.joints.torso, pose.joints.torso) < 0.5,
+    "near-full hand reach should not rotate the torso",
+  );
+  assert.ok(
+    nextPose.joints.rightShoulder.x > pose.joints.rightShoulder.x,
+    "reaching shoulder should follow the hand",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightShoulder, pose.joints.rightShoulder) < 5,
+    "shoulder rotation should stay subtle",
+  );
+  assert.ok(
+    Math.abs(
+      distance(nextPose.joints.neck, nextPose.joints.rightShoulder) -
+        distance(pose.joints.neck, pose.joints.rightShoulder),
+    ) < 0.001,
+    "shoulder follow should rotate around the neck without stretching",
+  );
+  assert.ok(
+    Math.abs(
+      distance(nextPose.joints.neck, nextPose.joints.torso) -
+        distance(pose.joints.neck, pose.joints.torso),
+    ) < 0.001,
+    "hand reach rotation should not stretch the upper spine",
+  );
+  assert.ok(
+    Math.abs(
+      distance(nextPose.joints.torso, nextPose.joints.pelvis) -
+        distance(pose.joints.torso, pose.joints.pelvis),
+    ) < 0.001,
+    "hand reach rotation should not stretch the lower spine",
+  );
+  assert.ok(
+    Math.abs(
+      distance(nextPose.joints.rightShoulder, nextPose.joints.rightElbow) -
+        model.upperArm,
+    ) < 0.01,
+    "IK should preserve upper-arm length",
+  );
+  assert.ok(
+    Math.abs(
+      distance(nextPose.joints.rightElbow, nextPose.joints.rightHand) -
+        model.forearm,
+    ) < 0.01,
+    "IK should preserve forearm length",
+  );
+});
+
+test("lets a far hand reach straighten fully without stretching either arm bone", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 140, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 135, y: 155 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 138, y: 205 },
+    },
+  };
+
+  const nextPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "rightHand",
+      target: { x: 220, y: 24 },
+    },
+    model,
+  );
+  const armReach = distance(
+    nextPose.joints.rightShoulder,
+    nextPose.joints.rightHand,
+  );
+
+  assert.ok(
+    armReach > model.upperArm + model.forearm - 0.001,
+    "far hand drag should allow the arm to straighten fully",
+  );
+  assert.ok(
+    armReach <= model.upperArm + model.forearm + 0.001,
+    "far hand drag should not stretch the arm beyond its bone lengths",
+  );
+  assert.ok(
+    Math.abs(
+      distance(nextPose.joints.rightShoulder, nextPose.joints.rightElbow) -
+        model.upperArm,
+    ) < 0.01,
+    "far hand drag should preserve the upper-arm bone length",
+  );
+  assert.ok(
+    Math.abs(
+      distance(nextPose.joints.rightElbow, nextPose.joints.rightHand) -
+        model.forearm,
+    ) < 0.01,
+    "far hand drag should preserve the forearm bone length",
+  );
+});
+
+test("keeps repeated hand drag frames stable when they use the same drag start pose", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 135, y: 155 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 138, y: 205 },
+    },
+  };
+  const dragInput = {
+    endpointId: "rightHand",
+    target: { x: 220, y: 24 },
+  };
+
+  const firstPose = resolveSkeletonPoseDrag(pose, dragInput, model);
+  const repeatedPose = resolveSkeletonPoseDrag(pose, dragInput, model);
+
+  assert.ok(
+    distance(repeatedPose.joints.rightShoulder, firstPose.joints.rightShoulder) <
+      0.001,
+    "repeated move frames from the same drag start should not keep moving the shoulder",
+  );
+  assert.ok(
+    Math.abs(
+      distance(repeatedPose.joints.rightShoulder, repeatedPose.joints.rightElbow) -
+        model.upperArm,
+    ) < 0.01,
+    "repeated move frames should preserve upper-arm length",
+  );
+  assert.ok(
+    Math.abs(
+      distance(repeatedPose.joints.rightElbow, repeatedPose.joints.rightHand) -
+        model.forearm,
+    ) < 0.01,
+    "repeated move frames should preserve forearm length",
+  );
+});
+
+test("extends a reachable foot without rotating or shifting the core", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 135, y: 155 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 138, y: 205 },
+    },
+  };
+
+  const nextPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "rightFoot",
+      target: { x: 198, y: 169 },
+    },
+    model,
+  );
+
+  assert.deepEqual(nextPose.joints.torso, pose.joints.torso);
+  assert.deepEqual(nextPose.joints.pelvis, pose.joints.pelvis);
+  assert.deepEqual(nextPose.joints.rightHip, pose.joints.rightHip);
+});
+
+test("leans the core toward a far foot drag", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 135, y: 155 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 138, y: 205 },
+    },
+  };
+
+  const nextPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "rightFoot",
+      target: { x: 220, y: 224 },
+    },
+    model,
+  );
+
+  assert.ok(
+    nextPose.joints.pelvis.x - nextPose.joints.torso.x > 2,
+    "right foot reach should pull the pelvis right so the torso axis leans",
+  );
+  assert.ok(
+    nextPose.joints.pelvis.x - nextPose.joints.torso.x < 5,
+    "leg reach should not over-rotate the torso axis",
+  );
+  assert.ok(
+    nextPose.joints.neck.x < nextPose.joints.pelvis.x,
+    "upper body should stay opposite the reaching foot",
+  );
+});
+
+test("raises a hand overhead by rotating the shoulder above a right angle", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 135, y: 155 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 138, y: 205 },
+    },
+  };
+
+  const nextPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "rightHand",
+      target: { x: 150, y: -80 },
+    },
+    model,
+  );
+
+  assert.deepEqual(nextPose.joints.pelvis, pose.joints.pelvis);
+  assert.ok(
+    distance(nextPose.joints.neck, pose.joints.neck) < 0.5,
+    "overhead hand reach should not rotate the neck",
+  );
+  assert.ok(
+    distance(nextPose.joints.torso, pose.joints.torso) < 0.5,
+    "overhead hand reach should not rotate the torso",
+  );
+  assert.ok(
+    nextPose.joints.rightShoulder.y < pose.joints.rightShoulder.y - 10,
+    "overhead hand reach should rotate the shoulder upward past a right-angle pose",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightShoulder, pose.joints.rightShoulder) < 16,
+    "overhead shoulder rotation should stay controlled",
+  );
+  assert.ok(
+    Math.abs(
+      distance(nextPose.joints.neck, nextPose.joints.rightShoulder) -
+        distance(pose.joints.neck, pose.joints.rightShoulder),
+    ) < 0.001,
+    "overhead shoulder follow should rotate around the neck without stretching",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightShoulder, nextPose.joints.rightHand) >
+      model.upperArm + model.forearm - 0.001,
+    "overhead hand reach should allow the arm to straighten fully",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightShoulder, nextPose.joints.rightHand) <=
+      model.upperArm + model.forearm + 0.001,
+    "overhead hand reach should not stretch the arm past its bone lengths",
+  );
+});
+
+test("keeps the pelvis quiet when a hand is pulled diagonally", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 135, y: 155 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 138, y: 205 },
+    },
+  };
+
+  const nextPose = resolveSkeletonPoseDrag(
+    pose,
+    {
+      endpointId: "rightHand",
+      target: { x: 210, y: 85 },
+    },
+    model,
+  );
+
+  assert.ok(
+    distance(nextPose.joints.pelvis, pose.joints.pelvis) < 2,
+    "diagonal hand pulls should not drag the pelvis across the wall",
+  );
+  assert.ok(
+    distance(nextPose.joints.rightShoulder, { x: 210, y: 85 }) <
+      distance(pose.joints.rightShoulder, { x: 210, y: 85 }),
+    "diagonal hand pulls should rotate the shoulder toward the hand",
+  );
+  assert.ok(
+    distance(nextPose.joints.torso, pose.joints.torso) < 0.5,
+    "diagonal hand pulls should not rotate the torso",
+  );
+  assert.ok(
+    Math.abs(
+      distance(nextPose.joints.neck, nextPose.joints.rightShoulder) -
+        distance(pose.joints.neck, pose.joints.rightShoulder),
+    ) < 0.001,
+    "hand pulls should rotate the shoulder around the neck without stretching",
+  );
+  assert.ok(
+    Math.abs(
+      distance(nextPose.joints.neck, nextPose.joints.torso) -
+        distance(pose.joints.neck, pose.joints.torso),
+    ) < 0.001,
+    "hand pulls should not stretch the upper spine",
+  );
+  assert.ok(
+    Math.abs(
+      distance(nextPose.joints.torso, nextPose.joints.pelvis) -
+        distance(pose.joints.torso, pose.joints.pelvis),
+    ) < 0.001,
+    "hand pulls should not stretch the lower spine",
+  );
+});
+
+test("rotates the head with the neck and sternum without stretching the spine", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 110, y: 28 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 135, y: 155 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 138, y: 205 },
+    },
+  };
+
+  const nextPose = resolveSkeletonHeadDrag(
+    pose,
+    {
+      target: { x: 125, y: 8 },
+    },
+    model,
+  );
+
+  assert.ok(
+    nextPose.joints.head.y < pose.joints.head.y,
+    "dragging above the neck should raise the head",
+  );
+  assert.ok(
+    nextPose.joints.neck.x > pose.joints.neck.x,
+    "neck should rotate toward a lateral head lift",
+  );
+  assert.ok(
+    nextPose.joints.torso.x > pose.joints.torso.x,
+    "sternum should rotate toward a lateral head lift",
+  );
+  assert.ok(
+    distance(nextPose.joints.head, nextPose.joints.neck) -
+      model.headRadius * 1.55 <
+      0.001,
+    "head should keep its natural neck distance",
+  );
+  assert.ok(
+    Math.abs(
+      distance(nextPose.joints.neck, nextPose.joints.torso) -
+        distance(pose.joints.neck, pose.joints.torso),
+    ) < 0.001,
+    "head pulls should not stretch the upper spine",
+  );
+  assert.ok(
+    Math.abs(
+      distance(nextPose.joints.torso, nextPose.joints.pelvis) -
+        distance(pose.joints.torso, pose.joints.pelvis),
+    ) < 0.001,
+    "head pulls should not stretch the lower spine",
+  );
+  assert.deepEqual(nextPose.joints.pelvis, pose.joints.pelvis);
 });

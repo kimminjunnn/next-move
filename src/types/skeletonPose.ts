@@ -61,6 +61,10 @@ export type SkeletonJointDragInput = {
   target: SimulationPoint;
 };
 
+export type SkeletonHeadDragInput = {
+  target: SimulationPoint;
+};
+
 export type SkeletonCoreDragInput = {
   delta: SimulationPoint;
 };

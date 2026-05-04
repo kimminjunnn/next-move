@@ -18,6 +18,7 @@ import {
   getEndpointPosition,
   getSkeletonCenter,
   resolveSkeletonCoreDrag,
+  resolveSkeletonHeadDrag,
   resolveSkeletonJointDrag,
   resolveSkeletonPoseDrag,
   translateSkeletonPose,
@@ -74,14 +75,17 @@ const BONES: Array<[SkeletonJointId, SkeletonJointId]> = [
 
 const MIN_ENDPOINT_HIT_SIZE = 34;
 const MIN_JOINT_HIT_SIZE = 30;
+const MIN_HEAD_HIT_SIZE = 34;
 const MIN_BODY_HIT_SIZE = 40;
 const ENDPOINT_PRIORITY_BONUS = 0.86;
 const JOINT_PRIORITY_BONUS = 0.72;
+const HEAD_PRIORITY_BONUS = 0.62;
 const BODY_PRIORITY_BONUS = 1.18;
 
 type SkeletonDragTarget =
   | { kind: "endpoint"; id: SkeletonEndpointId }
   | { kind: "joint"; id: SkeletonControlJointId }
+  | { kind: "head" }
   | { kind: "body" };
 
 type HitFrame = {
@@ -101,6 +105,7 @@ function getOverlayMetrics(scale: number) {
   return {
     boneStrokeWidth: clampNumber(scale * 7.5, 2.8, 5),
     headStrokeWidth: clampNumber(scale * 5.2, 2.4, 4),
+    headHitSize: Math.max(MIN_HEAD_HIT_SIZE, scale * 34),
     endpointRadius,
     endpointActiveRadius: endpointRadius + 3,
     endpointHitSize: Math.max(MIN_ENDPOINT_HIT_SIZE, endpointRadius * 3.2),
@@ -144,7 +149,11 @@ function getDragTargetKey(target: SkeletonDragTarget | null) {
     return null;
   }
 
-  return target.kind === "body" ? "body" : target.id;
+  if (target.kind === "body" || target.kind === "head") {
+    return target.kind;
+  }
+
+  return target.id;
 }
 
 function getDistanceSquared(a: SimulationPoint, b: SimulationPoint) {
@@ -285,14 +294,20 @@ export function SkeletonPoseOverlay({
       poseRef.current,
       endpointId,
     );
-    dragStartPoseRef.current = null;
+    dragStartPoseRef.current = poseRef.current;
     setActiveDragTarget({ kind: "endpoint", id: endpointId });
   }
 
   function beginJointDrag(jointId: SkeletonControlJointId) {
     dragStartPointRef.current = poseRef.current.joints[jointId];
-    dragStartPoseRef.current = null;
+    dragStartPoseRef.current = poseRef.current;
     setActiveDragTarget({ kind: "joint", id: jointId });
+  }
+
+  function beginHeadDrag() {
+    dragStartPointRef.current = poseRef.current.joints.head;
+    dragStartPoseRef.current = poseRef.current;
+    setActiveDragTarget({ kind: "head" });
   }
 
   function beginBodyDrag() {
@@ -341,6 +356,12 @@ export function SkeletonPoseOverlay({
         scoreMultiplier: JOINT_PRIORITY_BONUS,
         target: { kind: "joint", id: jointId } as SkeletonDragTarget,
       })),
+      {
+        center: poseRef.current.joints.head,
+        maxDistance: metrics.headHitSize / 2,
+        scoreMultiplier: HEAD_PRIORITY_BONUS,
+        target: { kind: "head" },
+      },
       ...ENDPOINTS.map((endpointId) => ({
         center: getEndpointPosition(poseRef.current, endpointId),
         maxDistance: metrics.endpointHitSize / 2,
@@ -393,6 +414,11 @@ export function SkeletonPoseOverlay({
 
     if (target.kind === "joint") {
       beginJointDrag(target.id);
+      return;
+    }
+
+    if (target.kind === "head") {
+      beginHeadDrag();
       return;
     }
 
@@ -456,24 +482,33 @@ export function SkeletonPoseOverlay({
     };
 
     setPose((currentPose) => {
+      const dragStartPose = dragStartPoseRef.current ?? currentPose;
       const nextPose =
         dragTarget.kind === "endpoint"
           ? resolveSkeletonPoseDrag(
-              currentPose,
+              dragStartPose,
               {
                 endpointId: dragTarget.id,
                 target,
               },
               bodyModelRef.current,
             )
-          : resolveSkeletonJointDrag(
-              currentPose,
-              {
-                jointId: dragTarget.id,
-                target,
-              },
-              bodyModelRef.current,
-            );
+          : dragTarget.kind === "head"
+            ? resolveSkeletonHeadDrag(
+                dragStartPoseRef.current ?? currentPose,
+                {
+                  target,
+                },
+                bodyModelRef.current,
+              )
+            : resolveSkeletonJointDrag(
+                dragStartPose,
+                {
+                  jointId: dragTarget.id,
+                  target,
+                },
+                bodyModelRef.current,
+              );
 
       poseRef.current = nextPose;
       return nextPose;
@@ -599,6 +634,23 @@ export function SkeletonPoseOverlay({
     [],
   );
 
+  const headResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (event) => {
+          beginNearestDragFromHitFrame("head", event);
+        },
+        onPanResponderMove: (_event, gestureState) => {
+          moveActiveDrag(gestureState);
+        },
+        onPanResponderRelease: endEndpointDrag,
+        onPanResponderTerminate: endEndpointDrag,
+      }),
+    [],
+  );
+
   const pinchResponder = useMemo(
     () =>
       PanResponder.create({
@@ -637,10 +689,21 @@ export function SkeletonPoseOverlay({
           <Circle
             cx={pose.joints.head.x}
             cy={pose.joints.head.y}
-            fill="rgba(255,255,255,0.08)"
+            fill={
+              activeControlId === "head"
+                ? "rgba(255,179,122,0.24)"
+                : "rgba(255,255,255,0.08)"
+            }
+            opacity={activeControlId && activeControlId !== "head" ? 0.62 : 1}
             r={bodyModel.headRadius}
-            stroke="rgba(255,255,255,0.72)"
-            strokeWidth={metrics.headStrokeWidth}
+            stroke={
+              activeControlId === "head" ? "#ffb37a" : "rgba(255,255,255,0.72)"
+            }
+            strokeWidth={
+              activeControlId === "head"
+                ? metrics.headStrokeWidth + 1
+                : metrics.headStrokeWidth
+            }
           />
 
           <Circle
@@ -728,6 +791,31 @@ export function SkeletonPoseOverlay({
         ]}
       />
 
+      <View
+        {...headResponder.panHandlers}
+        accessibilityHint="끌어서 머리 방향을 조정합니다."
+        accessibilityLabel="머리 이동"
+        style={[
+          styles.headHitArea,
+          (() => {
+            const point = pose.joints.head;
+            const frame = {
+              left: point.x - metrics.headHitSize / 2,
+              top: point.y - metrics.headHitSize / 2,
+            };
+
+            hitFramesRef.current.head = frame;
+
+            return {
+              ...frame,
+              width: metrics.headHitSize,
+              height: metrics.headHitSize,
+              borderRadius: metrics.headHitSize / 2,
+            };
+          })(),
+        ]}
+      />
+
       {ENDPOINTS.map((endpointId) => {
         const point = pose.joints[endpointId];
         const hitFrameKey = `endpoint:${endpointId}`;
@@ -801,6 +889,9 @@ const styles = StyleSheet.create({
     position: "absolute",
   },
   jointHitArea: {
+    position: "absolute",
+  },
+  headHitArea: {
     position: "absolute",
   },
   bodyHitArea: {

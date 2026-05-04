@@ -26,6 +26,14 @@ export default function HomeScreen() {
             <Text style={styles.ctaText}>시작하기</Text>
             <Ionicons color="#fffdf8" name="arrow-forward" size={30} />
           </Pressable>
+
+          <Pressable
+            onPress={() => router.push("/skeleton-lab")}
+            style={styles.labButton}
+          >
+            <Ionicons color="#241810" name="body-outline" size={18} />
+            <Text style={styles.labText}>스켈레톤 테스트</Text>
+          </Pressable>
         </View>
       </View>
     </SafeAreaView>
@@ -74,5 +82,25 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
     letterSpacing: -0.7,
+  },
+  labButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    gap: 8,
+    marginTop: 12,
+    minHeight: 40,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.62)",
+    borderWidth: 1,
+    borderColor: "rgba(36,24,16,0.12)",
+  },
+  labText: {
+    color: "#241810",
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 0,
   },
 });

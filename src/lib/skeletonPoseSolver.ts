@@ -5,12 +5,21 @@ import type {
   SkeletonControlJointId,
   SkeletonDragInput,
   SkeletonEndpointId,
+  SkeletonHeadDragInput,
   SkeletonJointDragInput,
   SkeletonJointMap,
   SkeletonPose,
 } from "../types/skeletonPose";
 
 const TORSO_FOLLOW_RATIO = 0.38;
+const ARM_SHOULDER_ROTATION_FOLLOW_RATIO = 0.82;
+const ARM_SHOULDER_ROTATION_MAX_RADIANS = 0.58;
+const ARM_SHOULDER_RESPONSE_START_REACH_RATIO = 0.82;
+const LEG_CORE_ROTATION_MAX_RADIANS = 0.16;
+const LEG_CORE_RESPONSE_FULL_REACH_RATIO = 1.34;
+const LEG_CORE_RESPONSE_START_REACH_RATIO = 1;
+const HEAD_SPINE_ROTATION_MAX_RADIANS = 0.12;
+const HEAD_SPINE_FOLLOW_RATIO = 0.42;
 const MIN_SOLVE_DISTANCE = 0.001;
 
 function add(a: SimulationPoint, b: SimulationPoint): SimulationPoint {
@@ -23,6 +32,14 @@ function subtract(a: SimulationPoint, b: SimulationPoint): SimulationPoint {
 
 function scaleVector(point: SimulationPoint, scale: number): SimulationPoint {
   return { x: point.x * scale, y: point.y * scale };
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function smoothStep(value: number) {
+  return value * value * (3 - 2 * value);
 }
 
 function distance(a: SimulationPoint, b: SimulationPoint) {
@@ -337,6 +354,166 @@ function shiftCore(
   return shifted;
 }
 
+function rotatePointAround(
+  point: SimulationPoint,
+  center: SimulationPoint,
+  angle: number,
+): SimulationPoint {
+  const translated = subtract(point, center);
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+
+  return {
+    x: center.x + translated.x * cos - translated.y * sin,
+    y: center.y + translated.x * sin + translated.y * cos,
+  };
+}
+
+function rotateCore(
+  joints: SkeletonJointMap,
+  angle: number,
+): SkeletonJointMap {
+  if (Math.abs(angle) <= MIN_SOLVE_DISTANCE) {
+    return joints;
+  }
+
+  const rotated = { ...joints };
+  const center = getSkeletonCenter({ joints });
+  const coreIds = [
+    "head",
+    "neck",
+    "torso",
+    "pelvis",
+    "leftShoulder",
+    "rightShoulder",
+    "leftHip",
+    "rightHip",
+  ] as const;
+
+  coreIds.forEach((jointId) => {
+    rotated[jointId] = rotatePointAround(rotated[jointId], center, angle);
+  });
+
+  return rotated;
+}
+
+function rotateUpperCore(
+  joints: SkeletonJointMap,
+  angle: number,
+): SkeletonJointMap {
+  if (Math.abs(angle) <= MIN_SOLVE_DISTANCE) {
+    return joints;
+  }
+
+  const rotated = { ...joints };
+  const upperIds = [
+    "head",
+    "neck",
+    "torso",
+    "leftShoulder",
+    "rightShoulder",
+  ] as const;
+
+  upperIds.forEach((jointId) => {
+    rotated[jointId] = rotatePointAround(
+      rotated[jointId],
+      rotated.pelvis,
+      angle,
+    );
+  });
+
+  return rotated;
+}
+
+function angleBetweenVectors(from: SimulationPoint, to: SimulationPoint) {
+  const cross = from.x * to.y - from.y * to.x;
+  const dot = from.x * to.x + from.y * to.y;
+
+  return Math.atan2(cross, dot);
+}
+
+function isHandEndpoint(endpointId: SkeletonEndpointId) {
+  return endpointId === "leftHand" || endpointId === "rightHand";
+}
+
+function resolveCoreRotationAngle(
+  endpointId: SkeletonEndpointId,
+  root: SimulationPoint,
+  target: SimulationPoint,
+  maxReach: number,
+  reachEffort: number,
+) {
+  const horizontalReachRatio = clampNumber(
+    Math.abs(target.x - root.x) / maxReach,
+    0,
+    1,
+  );
+  const isFoot = endpointId === "leftFoot" || endpointId === "rightFoot";
+  const isHand = endpointId === "leftHand" || endpointId === "rightHand";
+
+  if (isFoot) {
+    const leanDirection = target.x >= root.x ? -1 : 1;
+
+    return (
+      leanDirection *
+      LEG_CORE_ROTATION_MAX_RADIANS *
+      reachEffort *
+      horizontalReachRatio
+    );
+  }
+
+  if (isHand) {
+    return 0;
+  }
+
+  return 0;
+}
+
+function resolveCoreReachEffort(
+  targetDistance: number,
+  maxReach: number,
+) {
+  const rawEffort =
+    (targetDistance - maxReach * LEG_CORE_RESPONSE_START_REACH_RATIO) /
+    (maxReach *
+      (LEG_CORE_RESPONSE_FULL_REACH_RATIO - LEG_CORE_RESPONSE_START_REACH_RATIO));
+
+  return smoothStep(clampNumber(rawEffort, 0, 1));
+}
+
+function resolveShoulderReach(
+  shoulder: SimulationPoint,
+  neck: SimulationPoint,
+  target: SimulationPoint,
+  maxReach: number,
+): SimulationPoint {
+  const targetDistance = distance(shoulder, target);
+  const startDistance = maxReach * ARM_SHOULDER_RESPONSE_START_REACH_RATIO;
+
+  if (targetDistance <= startDistance) {
+    return shoulder;
+  }
+
+  const effort = smoothStep(
+    clampNumber(
+      (targetDistance - startDistance) / (maxReach - startDistance),
+      0,
+      1,
+    ),
+  );
+  const shoulderDirection = subtract(shoulder, neck);
+  const targetDirection = subtract(target, neck);
+  const rotation = clampNumber(
+    angleBetweenVectors(shoulderDirection, targetDirection) *
+      ARM_SHOULDER_ROTATION_FOLLOW_RATIO *
+      effort,
+    -ARM_SHOULDER_ROTATION_MAX_RADIANS,
+    ARM_SHOULDER_ROTATION_MAX_RADIANS,
+  );
+
+  return rotatePointAround(shoulder, neck, rotation);
+}
+
 function resolveRestingLimbs(
   joints: SkeletonJointMap,
   model: SkeletonBodyModel,
@@ -363,7 +540,12 @@ function resolveRestingLimbs(
       resolved[endpointId],
       lengths.first,
       lengths.second,
-      bendDirection(endpointId),
+      currentBendDirection(
+        resolved[rootId],
+        resolved[jointId],
+        resolved[endpointId],
+        bendDirection(endpointId),
+      ),
     );
 
     resolved[jointId] = solved.joint;
@@ -421,29 +603,57 @@ export function resolveSkeletonPoseDrag(
   const maxReach = lengths.first + lengths.second;
   const root = pose.joints[rootId];
   const targetDistance = distance(root, input.target);
-  const overflow = Math.max(0, targetDistance - maxReach * 0.82);
+  const isHand = isHandEndpoint(input.endpointId);
+  const reachEffort = isHand
+    ? 0
+    : resolveCoreReachEffort(targetDistance, maxReach);
+  const overflow = Math.max(0, targetDistance - maxReach);
   const coreShift =
-    targetDistance > 0
+    !isHand && targetDistance > 0 && reachEffort > 0
       ? scaleVector(
           subtract(input.target, root),
-          (overflow / targetDistance) * TORSO_FOLLOW_RATIO,
+          (overflow / targetDistance) * TORSO_FOLLOW_RATIO * reachEffort,
         )
       : { x: 0, y: 0 };
-  const shiftedJoints = shiftCore(pose.joints, coreShift);
-  const solved = solveTwoBoneJoint(
-    shiftedJoints[rootId],
+  const coreRotationAngle = resolveCoreRotationAngle(
+    input.endpointId,
+    root,
     input.target,
+    maxReach,
+    reachEffort,
+  );
+  const shiftedJoints = isHand
+    ? rotateUpperCore(pose.joints, coreRotationAngle)
+    : rotateCore(shiftCore(pose.joints, coreShift), coreRotationAngle);
+  const rootedJoints: SkeletonJointMap = isHand
+    ? {
+        ...shiftedJoints,
+        [rootId]: resolveShoulderReach(
+          shiftedJoints[rootId],
+          shiftedJoints.neck,
+          input.target,
+          maxReach,
+        ),
+      }
+    : shiftedJoints;
+  const solveTarget =
+    isHand && distance(rootedJoints[rootId], input.target) > maxReach
+      ? clampDistance(rootedJoints[rootId], input.target, maxReach)
+      : input.target;
+  const solved = solveTwoBoneJoint(
+    rootedJoints[rootId],
+    solveTarget,
     lengths.first,
     lengths.second,
     currentBendDirection(
-      shiftedJoints[rootId],
-      shiftedJoints[jointId],
-      shiftedJoints[input.endpointId],
+      rootedJoints[rootId],
+      rootedJoints[jointId],
+      rootedJoints[input.endpointId],
       bendDirection(input.endpointId),
     ),
   );
   const nextJoints: SkeletonJointMap = {
-    ...shiftedJoints,
+    ...rootedJoints,
     [jointId]: solved.joint,
     [input.endpointId]: solved.endpoint,
   };
@@ -496,6 +706,48 @@ export function resolveSkeletonCoreDrag(
       pose.joints,
       model,
     ),
+  };
+}
+
+export function resolveSkeletonHeadDrag(
+  pose: SkeletonPose,
+  input: SkeletonHeadDragInput,
+  model: SkeletonBodyModel,
+): SkeletonPose {
+  const headToNeckDistance = model.headRadius * 1.55;
+  const currentHeadDirection = normalizeOrFallback(
+    subtract(pose.joints.head, pose.joints.neck),
+    -1,
+  );
+  const spineDirection = normalizeOrFallback(
+    subtract(pose.joints.neck, pose.joints.pelvis),
+    -1,
+  );
+  const targetSpineDirection = normalizeOrFallback(
+    subtract(input.target, pose.joints.pelvis),
+    -1,
+  );
+  const spineRotation = clampNumber(
+    angleBetweenVectors(spineDirection, targetSpineDirection) *
+      HEAD_SPINE_FOLLOW_RATIO,
+    -HEAD_SPINE_ROTATION_MAX_RADIANS,
+    HEAD_SPINE_ROTATION_MAX_RADIANS,
+  );
+  const shiftedJoints = rotateUpperCore(pose.joints, spineRotation);
+  const headDirection = normalizeOrFallback(
+    subtract(input.target, shiftedJoints.neck),
+    currentHeadDirection.x >= 0 ? 1 : -1,
+  );
+  const nextJoints: SkeletonJointMap = {
+    ...shiftedJoints,
+    head: add(
+      shiftedJoints.neck,
+      scaleVector(headDirection, headToNeckDistance),
+    ),
+  };
+
+  return {
+    joints: resolveAnchoredLimbs(nextJoints, pose.joints, model),
   };
 }
 

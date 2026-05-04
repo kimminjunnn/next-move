@@ -26,6 +26,7 @@ export default function RootLayout() {
           }}
         >
           <Stack.Screen name="index" />
+          <Stack.Screen name="skeleton-lab" />
           <Stack.Screen name="(tabs)/settings" />
           <Stack.Screen name="(tabs)/simulation" />
         </Stack>
