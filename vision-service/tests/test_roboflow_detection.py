@@ -2,10 +2,60 @@ import unittest
 
 import numpy as np
 
-from app.roboflow_detection import roboflow_predictions_to_response
+from app.roboflow_detection import (
+    _resize_image_for_roboflow,
+    _scale_roboflow_payload,
+    roboflow_predictions_to_response,
+)
 
 
 class RoboflowDetectionTests(unittest.TestCase):
+    def test_resizes_large_images_for_roboflow_requests(self):
+        image = np.zeros((3000, 1000, 3), dtype=np.uint8)
+
+        resized, scale_x, scale_y = _resize_image_for_roboflow(image)
+
+        self.assertEqual(resized.shape[:2], (1600, 533))
+        self.assertAlmostEqual(scale_x, 1000 / 533)
+        self.assertAlmostEqual(scale_y, 3000 / 1600)
+
+    def test_scales_roboflow_prediction_coordinates_back_to_original_image(self):
+        payload = {
+            "predictions": [
+                {
+                    "class": "hold",
+                    "confidence": 0.91,
+                    "x": 100,
+                    "y": 200,
+                    "width": 40,
+                    "height": 60,
+                    "points": [
+                        {"x": 80, "y": 170},
+                        {"x": 120, "y": 170},
+                        {"x": 120, "y": 230},
+                        {"x": 80, "y": 230},
+                    ],
+                }
+            ]
+        }
+
+        scaled = _scale_roboflow_payload(payload, scale_x=2, scale_y=3)
+        prediction = scaled["predictions"][0]
+
+        self.assertEqual(prediction["x"], 200)
+        self.assertEqual(prediction["y"], 600)
+        self.assertEqual(prediction["width"], 80)
+        self.assertEqual(prediction["height"], 180)
+        self.assertEqual(
+            prediction["points"],
+            [
+                {"x": 160, "y": 510},
+                {"x": 240, "y": 510},
+                {"x": 240, "y": 690},
+                {"x": 160, "y": 690},
+            ],
+        )
+
     def test_converts_hold_and_volume_predictions_to_wall_objects(self):
         image = np.zeros((120, 160, 3), dtype=np.uint8)
         image[:] = (10, 20, 30)

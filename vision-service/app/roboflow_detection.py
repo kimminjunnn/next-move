@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import copy
 import json
 import os
 import ssl
@@ -23,6 +24,7 @@ from app.schemas import (
 ALLOWED_CLASSES = {"hold", "volume"}
 DEFAULT_CONFIDENCE_THRESHOLD = 0.35
 DEFAULT_API_URL = "https://detect.roboflow.com"
+MAX_ROBOFLOW_IMAGE_SIDE = 1600
 
 
 class RoboflowConfigError(RuntimeError):
@@ -96,6 +98,73 @@ def _prediction_confidence(prediction: dict[str, Any]) -> float:
         return float(prediction.get("confidence", 0))
     except (TypeError, ValueError):
         return 0.0
+
+
+def _resize_image_for_roboflow(
+    image: np.ndarray,
+    max_side: int = MAX_ROBOFLOW_IMAGE_SIDE,
+) -> tuple[np.ndarray, float, float]:
+    height, width = image.shape[:2]
+    longest_side = max(width, height)
+
+    if longest_side <= max_side:
+        return image, 1.0, 1.0
+
+    resize_scale = max_side / longest_side
+    resized_width = max(1, int(round(width * resize_scale)))
+    resized_height = max(1, int(round(height * resize_scale)))
+    resized = cv2.resize(
+        image,
+        (resized_width, resized_height),
+        interpolation=cv2.INTER_AREA,
+    )
+    return resized, width / resized_width, height / resized_height
+
+
+def _scale_number(value: Any, scale: float) -> Any:
+    try:
+        return int(round(float(value) * scale))
+    except (TypeError, ValueError):
+        return value
+
+
+def _scale_roboflow_payload(
+    payload: dict[str, Any],
+    scale_x: float,
+    scale_y: float,
+) -> dict[str, Any]:
+    if scale_x == 1.0 and scale_y == 1.0:
+        return payload
+
+    scaled_payload = copy.deepcopy(payload)
+    predictions = scaled_payload.get("predictions")
+    if not isinstance(predictions, list):
+        return scaled_payload
+
+    for prediction in predictions:
+        if not isinstance(prediction, dict):
+            continue
+
+        for key in ("x", "width"):
+            if key in prediction:
+                prediction[key] = _scale_number(prediction[key], scale_x)
+        for key in ("y", "height"):
+            if key in prediction:
+                prediction[key] = _scale_number(prediction[key], scale_y)
+
+        points = prediction.get("points")
+        if not isinstance(points, list):
+            continue
+
+        for point in points:
+            if not isinstance(point, dict):
+                continue
+            if "x" in point:
+                point["x"] = _scale_number(point["x"], scale_x)
+            if "y" in point:
+                point["y"] = _scale_number(point["y"], scale_y)
+
+    return scaled_payload
 
 
 def _points_from_prediction(prediction: dict[str, Any]) -> list[Point]:
@@ -276,8 +345,9 @@ def infer_wall_objects_with_roboflow(
     api_key = _required_env("ROBOFLOW_API_KEY")
     model_id = _required_env("ROBOFLOW_MODEL_ID")
     api_url = os.environ.get("ROBOFLOW_API_URL", DEFAULT_API_URL).rstrip("/")
+    request_image, scale_x, scale_y = _resize_image_for_roboflow(image)
 
-    ok, encoded = cv2.imencode(".jpg", image)
+    ok, encoded = cv2.imencode(".jpg", request_image)
     if not ok:
         raise RoboflowRequestError("image_encode_failed")
 
@@ -302,6 +372,7 @@ def infer_wall_objects_with_roboflow(
     except json.JSONDecodeError as error:
         raise RoboflowRequestError("roboflow_response_invalid") from error
 
+    payload = _scale_roboflow_payload(payload, scale_x, scale_y)
     return roboflow_predictions_to_response(
         image=image,
         payload=payload,
