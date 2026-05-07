@@ -20,6 +20,7 @@ import {
   viewportPointToAnalysisPoint,
 } from "../lib/simulationViewport";
 import { toggleRouteIncludedObjectIds } from "../lib/routeSelectionState";
+import { shouldShowWallAnalysisRetry } from "../lib/wallAnalysisRetry";
 import type {
   RouteSelectionResult,
   SimulationDetectedObject,
@@ -32,7 +33,11 @@ import { AppHeader } from "./AppHeader";
 import { BottomTabBar } from "./BottomTabBar";
 import { ConfirmModal } from "./ConfirmModal";
 import { RouteHighlightOverlay } from "./RouteHighlightOverlay";
-import { SkeletonPoseOverlay } from "./SkeletonPoseOverlay";
+import {
+  SkeletonPoseOverlay,
+  type SkeletonPoseOverlayHandle,
+  type SkeletonPoseOverlayHistoryState,
+} from "./SkeletonPoseOverlay";
 import { SimulationPhotoViewport } from "./SimulationPhotoViewport";
 
 type SimulationCanvasStageProps = {
@@ -70,9 +75,16 @@ export function SimulationCanvasStage({
   >(null);
   const [highlightError, setHighlightError] = useState<string | null>(null);
   const [flowStep, setFlowStep] = useState<CanvasFlowStep>("analyzingHolds");
+  const [analysisAttempt, setAnalysisAttempt] = useState(0);
   const simulationCueOpacity = useRef(new Animated.Value(0)).current;
   const simulationCueTranslateY = useRef(new Animated.Value(18)).current;
   const simulationCueScale = useRef(new Animated.Value(0.92)).current;
+  const skeletonOverlayRef = useRef<SkeletonPoseOverlayHandle>(null);
+  const [skeletonHistoryState, setSkeletonHistoryState] =
+    useState<SkeletonPoseOverlayHistoryState>({
+      canRedo: false,
+      canUndo: false,
+    });
 
   function handleViewportLayout(event: LayoutChangeEvent) {
     const { width, height } = event.nativeEvent.layout;
@@ -122,7 +134,7 @@ export function SimulationCanvasStage({
     return () => {
       isMounted = false;
     };
-  }, [photo]);
+  }, [analysisAttempt, photo]);
 
   useEffect(() => {
     simulationCueOpacity.stopAnimation();
@@ -365,6 +377,10 @@ export function SimulationCanvasStage({
     setFlowStep("selectingStartHold");
   }
 
+  function handleRetryAnalysis() {
+    setAnalysisAttempt((currentAttempt) => currentAttempt + 1);
+  }
+
   const holdCount = analysisResult
     ? analysisResult.objects.filter((object) => object.kind === "hold").length
     : 0;
@@ -417,6 +433,11 @@ export function SimulationCanvasStage({
   const shouldShowSkeletonOverlay =
     flowStep === "sizingSkeleton" || flowStep === "simulating";
   const shouldShowInfoCard = flowStep !== "simulating";
+  const shouldShowRetryButton = shouldShowWallAnalysisRetry({
+    analysisResult,
+    flowStep,
+    highlightError,
+  });
 
   const infoTitle = (() => {
     switch (flowStep) {
@@ -525,6 +546,29 @@ export function SimulationCanvasStage({
                     {highlightError ? (
                       <Text style={styles.errorText}>{highlightError}</Text>
                     ) : null}
+
+                    {shouldShowRetryButton ? (
+                      <Pressable
+                        accessibilityLabel="사진 분석 다시 시도"
+                        onPress={(event) => {
+                          event.stopPropagation();
+                          handleRetryAnalysis();
+                        }}
+                        style={({ pressed }) => [
+                          styles.retryAnalysisButton,
+                          pressed ? styles.retryAnalysisButtonPressed : null,
+                        ]}
+                      >
+                        <Ionicons
+                          color="#171717"
+                          name="refresh"
+                          size={15}
+                        />
+                        <Text style={styles.retryAnalysisButtonText}>
+                          다시 시도
+                        </Text>
+                      </Pressable>
+                    ) : null}
                   </View>
                 </View>
               ) : null}
@@ -535,12 +579,16 @@ export function SimulationCanvasStage({
           viewport.width > 0 &&
           viewport.height > 0 ? (
             <SkeletonPoseOverlay
+              ref={skeletonOverlayRef}
+              allowEmptySpacePinchScale
+              allowPinchScaleInSimulation
               initialCenter={skeletonInitialCenter}
               mode={
                 flowStep === "sizingSkeleton"
                   ? "calibrating"
                   : "simulating"
               }
+              onHistoryStateChange={setSkeletonHistoryState}
               viewportHeight={viewport.height}
               viewportWidth={viewport.width}
             />
@@ -637,6 +685,38 @@ export function SimulationCanvasStage({
           ) : null}
 
           <View style={styles.canvasTopOverlay}>
+            {flowStep === "simulating" ? (
+              <>
+                <Pressable
+                  accessibilityLabel="스켈레톤 이동 실행 취소"
+                  disabled={!skeletonHistoryState.canUndo}
+                  onPress={() => skeletonOverlayRef.current?.undo()}
+                  style={[
+                    styles.overlayIconButton,
+                    !skeletonHistoryState.canUndo
+                      ? styles.overlayIconButtonDisabled
+                      : null,
+                  ]}
+                >
+                  <Ionicons color="#ffffff" name="arrow-undo" size={19} />
+                </Pressable>
+
+                <Pressable
+                  accessibilityLabel="스켈레톤 이동 다시 실행"
+                  disabled={!skeletonHistoryState.canRedo}
+                  onPress={() => skeletonOverlayRef.current?.redo()}
+                  style={[
+                    styles.overlayIconButton,
+                    !skeletonHistoryState.canRedo
+                      ? styles.overlayIconButtonDisabled
+                      : null,
+                  ]}
+                >
+                  <Ionicons color="#ffffff" name="arrow-redo" size={19} />
+                </Pressable>
+              </>
+            ) : null}
+
             <Pressable onPress={onOpenCamera} style={styles.overlayIconButton}>
               <Ionicons color="#ffffff" name="camera-outline" size={20} />
             </Pressable>
@@ -795,6 +875,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
   },
+  retryAnalysisButton: {
+    alignSelf: "flex-start",
+    minHeight: 32,
+    marginTop: 10,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#ffb37a",
+  },
+  retryAnalysisButtonPressed: {
+    backgroundColor: "#ffc999",
+  },
+  retryAnalysisButtonText: {
+    color: "#171717",
+    fontSize: 12,
+    fontWeight: "900",
+  },
   reselectButton: {
     alignSelf: "flex-start",
     marginTop: 10,
@@ -867,5 +967,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(15, 15, 15, 0.68)",
+  },
+  overlayIconButtonDisabled: {
+    opacity: 0.34,
   },
 });

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -10,7 +10,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { SkeletonPoseOverlay } from "../src/components/SkeletonPoseOverlay";
+import {
+  SkeletonPoseOverlay,
+  type SkeletonPoseOverlayHandle,
+  type SkeletonPoseOverlayHistoryState,
+} from "../src/components/SkeletonPoseOverlay";
 
 type SkeletonLabMode = "calibrating" | "simulating";
 
@@ -25,7 +29,13 @@ const HOLD_POINTS = [
 
 export default function SkeletonLabScreen() {
   const router = useRouter();
+  const skeletonOverlayRef = useRef<SkeletonPoseOverlayHandle>(null);
   const [mode, setMode] = useState<SkeletonLabMode>("simulating");
+  const [historyState, setHistoryState] =
+    useState<SkeletonPoseOverlayHistoryState>({
+      canRedo: false,
+      canUndo: false,
+    });
   const [resetKey, setResetKey] = useState(0);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
 
@@ -54,13 +64,39 @@ export default function SkeletonLabScreen() {
             <Text style={styles.title}>스켈레톤 무빙 테스트</Text>
           </View>
 
-          <Pressable
-            accessibilityLabel="스켈레톤 리셋"
-            onPress={() => setResetKey((current) => current + 1)}
-            style={styles.iconButton}
-          >
-            <Ionicons color="#241810" name="refresh" size={20} />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              accessibilityLabel="스켈레톤 이동 실행 취소"
+              disabled={!historyState.canUndo}
+              onPress={() => skeletonOverlayRef.current?.undo()}
+              style={[
+                styles.iconButton,
+                !historyState.canUndo ? styles.iconButtonDisabled : null,
+              ]}
+            >
+              <Ionicons color="#241810" name="arrow-undo" size={19} />
+            </Pressable>
+
+            <Pressable
+              accessibilityLabel="스켈레톤 이동 다시 실행"
+              disabled={!historyState.canRedo}
+              onPress={() => skeletonOverlayRef.current?.redo()}
+              style={[
+                styles.iconButton,
+                !historyState.canRedo ? styles.iconButtonDisabled : null,
+              ]}
+            >
+              <Ionicons color="#241810" name="arrow-redo" size={19} />
+            </Pressable>
+
+            <Pressable
+              accessibilityLabel="스켈레톤 리셋"
+              onPress={() => setResetKey((current) => current + 1)}
+              style={styles.iconButton}
+            >
+              <Ionicons color="#241810" name="refresh" size={20} />
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.toolbar}>
@@ -121,11 +157,13 @@ export default function SkeletonLabScreen() {
           {hasViewport ? (
             <SkeletonPoseOverlay
               key={`${mode}-${resetKey}`}
+              ref={skeletonOverlayRef}
               initialCenter={{
                 x: viewport.width * 0.5,
                 y: viewport.height * 0.48,
               }}
               mode={mode}
+              onHistoryStateChange={setHistoryState}
               viewportHeight={viewport.height}
               viewportWidth={viewport.width}
             />
@@ -166,6 +204,13 @@ const styles = StyleSheet.create({
   },
   titleGroup: {
     flex: 1,
+  },
+  headerActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  iconButtonDisabled: {
+    opacity: 0.34,
   },
   eyebrow: {
     color: "#8f0000",

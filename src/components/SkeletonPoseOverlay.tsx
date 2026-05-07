@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   PanResponder,
   StyleSheet,
@@ -26,6 +33,18 @@ import {
   translateSkeletonPose,
   updateSkeletonStraightCoreDragState,
 } from "../lib/skeletonPoseSolver";
+import {
+  createSkeletonPoseHistory,
+  pushSkeletonPoseHistory,
+  redoSkeletonPoseHistory,
+  undoSkeletonPoseHistory,
+  type SkeletonPoseHistory,
+  type SkeletonPoseSnapshot,
+} from "../lib/skeletonPoseHistory";
+import {
+  getSkeletonOverlayPointerEvents,
+  shouldAllowSkeletonPinchScale,
+} from "../lib/skeletonPoseInteraction";
 import { useBodyProfileStore } from "../store/useBodyProfileStore";
 import type { SimulationPoint } from "../types/simulation";
 import type {
@@ -40,10 +59,23 @@ import type {
 } from "../types/skeletonPose";
 
 type SkeletonPoseOverlayProps = {
+  allowEmptySpacePinchScale?: boolean;
+  allowPinchScaleInSimulation?: boolean;
   initialCenter?: SimulationPoint;
   mode: "calibrating" | "simulating";
+  onHistoryStateChange?: (state: SkeletonPoseOverlayHistoryState) => void;
   viewportHeight: number;
   viewportWidth: number;
+};
+
+export type SkeletonPoseOverlayHandle = {
+  redo: () => void;
+  undo: () => void;
+};
+
+export type SkeletonPoseOverlayHistoryState = {
+  canRedo: boolean;
+  canUndo: boolean;
 };
 
 const ENDPOINTS: SkeletonEndpointId[] = [
@@ -226,12 +258,21 @@ function scalePoseAroundCenter(
   return { joints };
 }
 
-export function SkeletonPoseOverlay({
-  initialCenter,
-  mode,
-  viewportHeight,
-  viewportWidth,
-}: SkeletonPoseOverlayProps) {
+export const SkeletonPoseOverlay = forwardRef<
+  SkeletonPoseOverlayHandle,
+  SkeletonPoseOverlayProps
+>(function SkeletonPoseOverlay(
+  {
+    allowEmptySpacePinchScale = false,
+    allowPinchScaleInSimulation = false,
+    initialCenter,
+    mode,
+    onHistoryStateChange,
+    viewportHeight,
+    viewportWidth,
+  },
+  ref,
+) {
   const { profile } = useBodyProfileStore();
   const initialCenterX = initialCenter?.x;
   const initialCenterY = initialCenter?.y;
@@ -244,6 +285,11 @@ export function SkeletonPoseOverlay({
   const [pose, setPose] = useState<SkeletonPose>(() =>
     createDefaultPose(bodyModel, viewportWidth, viewportHeight, initialCenter),
   );
+  const [historyState, setHistoryState] =
+    useState<SkeletonPoseOverlayHistoryState>({
+      canRedo: false,
+      canUndo: false,
+    });
   const [activeControlId, setActiveControlId] = useState<string | null>(null);
   const activeDragTargetRef = useRef<SkeletonDragTarget | null>(null);
   const activeDragModeRef = useRef<SkeletonDragResolutionMode | null>(null);
@@ -251,6 +297,8 @@ export function SkeletonPoseOverlay({
     useRef<SkeletonStraightCoreDragState | null>(null);
   const dragStartPointRef = useRef<SimulationPoint | null>(null);
   const dragStartPoseRef = useRef<SkeletonPose | null>(null);
+  const dragStartSnapshotRef = useRef<SkeletonPoseSnapshot | null>(null);
+  const historyRef = useRef<SkeletonPoseHistory>(createSkeletonPoseHistory());
   const bodyModelRef = useRef(bodyModel);
   const modeRef = useRef(mode);
   const profileRef = useRef(profile);
@@ -281,6 +329,10 @@ export function SkeletonPoseOverlay({
   }, [pose]);
 
   useEffect(() => {
+    onHistoryStateChange?.(historyState);
+  }, [historyState, onHistoryStateChange]);
+
+  useEffect(() => {
     const defaultPose = createDefaultPose(
       bodyModel,
       viewportWidth,
@@ -292,7 +344,104 @@ export function SkeletonPoseOverlay({
 
     poseRef.current = defaultPose;
     setPose(defaultPose);
+    clearHistory();
   }, [initialCenterX, initialCenterY, profile, viewportHeight, viewportWidth]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      redo: redoPose,
+      undo: undoPose,
+    }),
+    [],
+  );
+
+  function getCurrentSnapshot(): SkeletonPoseSnapshot {
+    return {
+      pose: poseRef.current,
+      scale: scaleRef.current,
+    };
+  }
+
+  function updateHistoryState(history: SkeletonPoseHistory) {
+    setHistoryState({
+      canRedo: history.future.length > 0,
+      canUndo: history.past.length > 0,
+    });
+  }
+
+  function clearHistory() {
+    const history = createSkeletonPoseHistory();
+
+    historyRef.current = history;
+    updateHistoryState(history);
+  }
+
+  function areSnapshotsEqual(
+    first: SkeletonPoseSnapshot,
+    second: SkeletonPoseSnapshot,
+  ) {
+    return JSON.stringify(first) === JSON.stringify(second);
+  }
+
+  function applySnapshot(snapshot: SkeletonPoseSnapshot) {
+    const nextBodyModel = createSkeletonBodyModel(
+      profileRef.current,
+      snapshot.scale,
+    );
+
+    bodyModelRef.current = nextBodyModel;
+    scaleRef.current = snapshot.scale;
+    poseRef.current = snapshot.pose;
+    setScale(snapshot.scale);
+    setPose(snapshot.pose);
+    setActiveDragTarget(null);
+  }
+
+  function commitPoseHistory(startSnapshot: SkeletonPoseSnapshot | null) {
+    if (!startSnapshot) {
+      return;
+    }
+
+    if (areSnapshotsEqual(startSnapshot, getCurrentSnapshot())) {
+      return;
+    }
+
+    const history = pushSkeletonPoseHistory(historyRef.current, startSnapshot);
+
+    historyRef.current = history;
+    updateHistoryState(history);
+  }
+
+  function undoPose() {
+    const result = undoSkeletonPoseHistory(
+      historyRef.current,
+      getCurrentSnapshot(),
+    );
+
+    if (!result.snapshot) {
+      return;
+    }
+
+    historyRef.current = result.history;
+    updateHistoryState(result.history);
+    applySnapshot(result.snapshot);
+  }
+
+  function redoPose() {
+    const result = redoSkeletonPoseHistory(
+      historyRef.current,
+      getCurrentSnapshot(),
+    );
+
+    if (!result.snapshot) {
+      return;
+    }
+
+    historyRef.current = result.history;
+    updateHistoryState(result.history);
+    applySnapshot(result.snapshot);
+  }
 
   function setActiveDragTarget(target: SkeletonDragTarget | null) {
     activeDragTargetRef.current = target;
@@ -312,6 +461,7 @@ export function SkeletonPoseOverlay({
       endpointId,
     );
     dragStartPoseRef.current = poseRef.current;
+    dragStartSnapshotRef.current = getCurrentSnapshot();
     setActiveDragTarget({ kind: "endpoint", id: endpointId });
   }
 
@@ -320,6 +470,7 @@ export function SkeletonPoseOverlay({
     activeStraightCoreDragStateRef.current = null;
     dragStartPointRef.current = poseRef.current.joints[jointId];
     dragStartPoseRef.current = poseRef.current;
+    dragStartSnapshotRef.current = getCurrentSnapshot();
     setActiveDragTarget({ kind: "joint", id: jointId });
   }
 
@@ -328,6 +479,7 @@ export function SkeletonPoseOverlay({
     activeStraightCoreDragStateRef.current = null;
     dragStartPointRef.current = poseRef.current.joints.head;
     dragStartPoseRef.current = poseRef.current;
+    dragStartSnapshotRef.current = getCurrentSnapshot();
     setActiveDragTarget({ kind: "head" });
   }
 
@@ -336,6 +488,7 @@ export function SkeletonPoseOverlay({
     activeStraightCoreDragStateRef.current = null;
     dragStartPointRef.current = null;
     dragStartPoseRef.current = poseRef.current;
+    dragStartSnapshotRef.current = getCurrentSnapshot();
     setActiveDragTarget({ kind: "body" });
   }
 
@@ -586,17 +739,25 @@ export function SkeletonPoseOverlay({
   }
 
   function endEndpointDrag() {
+    commitPoseHistory(dragStartSnapshotRef.current);
     activeDragModeRef.current = null;
     activeStraightCoreDragStateRef.current = null;
     dragStartPointRef.current = null;
     dragStartPoseRef.current = null;
+    dragStartSnapshotRef.current = null;
     setActiveDragTarget(null);
   }
 
   function beginPinchScale(event: GestureResponderEvent) {
     const distance = getPinchDistance(event);
 
-    if (modeRef.current !== "calibrating" || distance === null) {
+    if (
+      !shouldAllowSkeletonPinchScale(
+        modeRef.current,
+        allowPinchScaleInSimulation,
+      ) ||
+      distance === null
+    ) {
       return;
     }
 
@@ -604,6 +765,7 @@ export function SkeletonPoseOverlay({
     pinchStartScaleRef.current = scaleRef.current;
     dragStartPointRef.current = null;
     dragStartPoseRef.current = null;
+    dragStartSnapshotRef.current = getCurrentSnapshot();
     activeDragModeRef.current = null;
     activeStraightCoreDragStateRef.current = null;
     setActiveDragTarget(null);
@@ -614,7 +776,10 @@ export function SkeletonPoseOverlay({
     const startDistance = pinchStartDistanceRef.current;
 
     if (
-      modeRef.current !== "calibrating" ||
+      !shouldAllowSkeletonPinchScale(
+        modeRef.current,
+        allowPinchScaleInSimulation,
+      ) ||
       distance === null ||
       startDistance === null ||
       startDistance <= 0
@@ -626,13 +791,18 @@ export function SkeletonPoseOverlay({
   }
 
   function endPinchScale() {
+    commitPoseHistory(dragStartSnapshotRef.current);
     pinchStartDistanceRef.current = null;
     pinchStartScaleRef.current = scaleRef.current;
+    dragStartSnapshotRef.current = null;
   }
 
   function shouldHandlePinch(event: GestureResponderEvent) {
     return (
-      modeRef.current === "calibrating" && event.nativeEvent.touches.length >= 2
+      shouldAllowSkeletonPinchScale(
+        modeRef.current,
+        allowPinchScaleInSimulation,
+      ) && event.nativeEvent.touches.length >= 2
     );
   }
 
@@ -741,7 +911,9 @@ export function SkeletonPoseOverlay({
   return (
     <View
       {...pinchResponder.panHandlers}
-      pointerEvents="box-none"
+      pointerEvents={getSkeletonOverlayPointerEvents(
+        allowEmptySpacePinchScale,
+      )}
       style={styles.overlay}
     >
       <View pointerEvents="none" style={styles.skeletonLayer}>
@@ -950,7 +1122,7 @@ export function SkeletonPoseOverlay({
 
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   overlay: {
