@@ -1233,6 +1233,19 @@ export function resolveSkeletonCoreDrag(
   };
 }
 
+export function resolveSkeletonBodyDrag(
+  pose: SkeletonPose,
+  input: SkeletonCoreDragInput,
+  model: SkeletonBodyModel,
+  mode: "calibrating" | "simulating",
+): SkeletonPose {
+  if (mode === "calibrating") {
+    return translateSkeletonPose(pose, input.delta);
+  }
+
+  return resolveSkeletonCoreDrag(pose, input, model);
+}
+
 export function resolveSkeletonHeadDrag(
   pose: SkeletonPose,
   input: SkeletonHeadDragInput,
@@ -1291,6 +1304,24 @@ export function limitSkeletonPoseStep(
   });
 
   return { joints };
+}
+
+export function limitSkeletonPoseStepWithModel(
+  currentPose: SkeletonPose,
+  targetPose: SkeletonPose,
+  maxJointDistance: number,
+  model: SkeletonBodyModel,
+): SkeletonPose {
+  const limitedPose = limitSkeletonPoseStep(
+    currentPose,
+    targetPose,
+    maxJointDistance,
+  );
+  const projectedPose = {
+    joints: resolveAnchoredLimbs(limitedPose.joints, limitedPose.joints, model),
+  };
+
+  return limitSkeletonPoseStep(currentPose, projectedPose, maxJointDistance);
 }
 
 export function translateSkeletonPose(

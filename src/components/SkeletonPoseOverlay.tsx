@@ -18,8 +18,8 @@ import {
   createDefaultSkeletonPose,
   getEndpointPosition,
   getSkeletonCenter,
-  limitSkeletonPoseStep,
-  resolveSkeletonCoreDrag,
+  limitSkeletonPoseStepWithModel,
+  resolveSkeletonBodyDrag,
   resolveSkeletonHeadDrag,
   resolveSkeletonJointDragWithMode,
   resolveSkeletonPoseDragWithMode,
@@ -473,10 +473,11 @@ export function SkeletonPoseOverlay({
     );
 
     function settleDragPose(nextPose: SkeletonPose) {
-      const limitedPose = limitSkeletonPoseStep(
+      const limitedPose = limitSkeletonPoseStepWithModel(
         poseRef.current,
         nextPose,
         maxDragFrameDistance,
+        bodyModelRef.current,
       );
 
       poseRef.current = limitedPose;
@@ -494,7 +495,7 @@ export function SkeletonPoseOverlay({
         return;
       }
 
-      const nextPose = resolveSkeletonCoreDrag(
+      const nextPose = resolveSkeletonBodyDrag(
         startPose,
         {
           delta: {
@@ -503,6 +504,7 @@ export function SkeletonPoseOverlay({
           },
         },
         bodyModelRef.current,
+        modeRef.current,
       );
 
       setPose(settleDragPose(nextPose));

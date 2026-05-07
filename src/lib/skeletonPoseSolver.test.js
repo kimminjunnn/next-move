@@ -10,7 +10,9 @@ const {
   resolveSkeletonJointDragWithMode,
   resolveSkeletonPoseDrag,
   resolveSkeletonPoseDragWithMode,
+  resolveSkeletonBodyDrag,
   limitSkeletonPoseStep,
+  limitSkeletonPoseStepWithModel,
   createSkeletonStraightCoreDragState,
   updateSkeletonStraightCoreDragState,
 } = require("./skeletonPoseSolver.ts");
@@ -61,6 +63,232 @@ test("limits every skeleton joint to the requested per-frame movement", () => {
     limitSkeletonPoseStep(currentPose, targetPose, 0),
     currentPose,
   );
+});
+
+test("translates the whole skeleton when body dragging in calibration mode", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 135, y: 155 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 138, y: 205 },
+    },
+  };
+  const delta = { x: 18, y: -12 };
+  const nextPose = resolveSkeletonBodyDrag(
+    pose,
+    { delta },
+    model,
+    "calibrating",
+  );
+
+  Object.entries(pose.joints).forEach(([jointId, point]) => {
+    assert.deepEqual(nextPose.joints[jointId], {
+      x: point.x + delta.x,
+      y: point.y + delta.y,
+    });
+  });
+});
+
+test("keeps simulation body drag anchored to prior hand and foot endpoints", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 135, y: 155 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 138, y: 205 },
+    },
+  };
+  const nextPose = resolveSkeletonBodyDrag(
+    pose,
+    { delta: { x: 2, y: 0 } },
+    model,
+    "simulating",
+  );
+
+  assert.ok(nextPose.joints.torso.x > pose.joints.torso.x);
+  assert.ok(distance(nextPose.joints.leftHand, pose.joints.leftHand) < 0.5);
+  assert.ok(distance(nextPose.joints.rightHand, pose.joints.rightHand) < 0.5);
+  assert.ok(distance(nextPose.joints.leftFoot, pose.joints.leftFoot) < 0.5);
+  assert.ok(distance(nextPose.joints.rightFoot, pose.joints.rightFoot) < 0.5);
+});
+
+test("model-aware frame limiting reprojects limb joints back to segment lengths", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const currentPose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 80, y: 80 },
+      rightElbow: { x: 120, y: 80 },
+      leftHand: { x: 80, y: 115 },
+      rightHand: { x: 120, y: 115 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 85, y: 160 },
+      rightKnee: { x: 115, y: 160 },
+      leftFoot: { x: 85, y: 210 },
+      rightFoot: { x: 115, y: 210 },
+    },
+  };
+  const targetPose = {
+    joints: {
+      ...currentPose.joints,
+      leftShoulder: { x: 140, y: 40 },
+      leftElbow: { x: 80, y: 81 },
+      leftHand: { x: 78, y: 115 },
+    },
+  };
+  const limitedPose = limitSkeletonPoseStepWithModel(
+    currentPose,
+    targetPose,
+    14,
+    model,
+  );
+
+  assert.ok(
+    Math.abs(
+      distance(limitedPose.joints.leftShoulder, limitedPose.joints.leftElbow) -
+        model.upperArm,
+    ) < 0.001,
+    "upper arm should be projected back to its modeled length",
+  );
+  assert.ok(
+    Math.abs(
+      distance(limitedPose.joints.leftElbow, limitedPose.joints.leftHand) -
+        model.forearm,
+    ) < 0.001,
+    "forearm should be projected back to its modeled length",
+  );
+});
+
+test("keeps model-aware frame limiting within the requested per-frame movement", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const currentPose = {
+    joints: {
+      head: { x: 150, y: 164 },
+      neck: { x: 150, y: 179.5 },
+      torso: { x: 150, y: 189.5 },
+      pelvis: { x: 150, y: 219.5 },
+      leftShoulder: { x: 130, y: 187.5 },
+      rightShoulder: { x: 170, y: 187.5 },
+      leftElbow: { x: 130, y: 227.5 },
+      rightElbow: { x: 170, y: 227.5 },
+      leftHand: { x: 130, y: 262.5 },
+      rightHand: { x: 170, y: 262.5 },
+      leftHip: { x: 135, y: 219.5 },
+      rightHip: { x: 165, y: 219.5 },
+      leftKnee: { x: 135, y: 279.5 },
+      rightKnee: { x: 165, y: 279.5 },
+      leftFoot: { x: 135, y: 329.5 },
+      rightFoot: { x: 165, y: 329.5 },
+    },
+  };
+  const targetPose = {
+    joints: {
+      ...currentPose.joints,
+      leftShoulder: { x: 267.5744482002689, y: 252.15238956576474 },
+      leftElbow: { x: 146.16380729531664, y: 176.88712467258395 },
+      leftHand: { x: 188.85286637160831, y: 140.5149200555074 },
+    },
+  };
+  const maxJointDistance = 14;
+  const limitedPose = limitSkeletonPoseStepWithModel(
+    currentPose,
+    targetPose,
+    maxJointDistance,
+    model,
+  );
+
+  Object.keys(currentPose.joints).forEach((jointId) => {
+    assert.ok(
+      distance(currentPose.joints[jointId], limitedPose.joints[jointId]) <=
+        maxJointDistance + 0.001,
+      `${jointId} should not jump farther than the model-aware frame limit`,
+    );
+  });
 });
 
 test("keeps the foot close to its prior position when a knee is dragged into a drop-knee shape", () => {
