@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { HomeGlassCard } from "../src/components/HomeGlassCard";
 import { HomeHeroHolds } from "../src/components/HomeHeroHolds";
+import { brand } from "../src/theme/brand";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -24,14 +25,18 @@ export default function HomeScreen() {
             style={styles.ctaButton}
           >
             <Text style={styles.ctaText}>시작하기</Text>
-            <Ionicons color="#fffdf8" name="arrow-forward" size={30} />
+            <Ionicons
+              color={brand.colors.primaryText}
+              name="arrow-forward"
+              size={30}
+            />
           </Pressable>
 
           <Pressable
             onPress={() => router.push("/skeleton-lab")}
             style={styles.labButton}
           >
-            <Ionicons color="#241810" name="body-outline" size={18} />
+            <Ionicons color={brand.colors.text} name="body-outline" size={18} />
             <Text style={styles.labText}>스켈레톤 테스트</Text>
           </Pressable>
         </View>
@@ -43,11 +48,11 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f7f3eb",
+    backgroundColor: brand.colors.wall,
   },
   screen: {
     flex: 1,
-    backgroundColor: "#f7f3eb",
+    backgroundColor: brand.colors.wall,
   },
   content: {
     flex: 1,
@@ -67,10 +72,10 @@ const styles = StyleSheet.create({
     gap: 14,
     minHeight: 72,
     borderRadius: 24,
-    backgroundColor: "#8f0000",
-    shadowColor: "#8f0000",
-    shadowOpacity: 0.26,
-    shadowRadius: 20,
+    backgroundColor: brand.colors.primary,
+    shadowColor: brand.colors.primary,
+    shadowOpacity: 0.24,
+    shadowRadius: 18,
     shadowOffset: {
       width: 0,
       height: 12,
@@ -78,7 +83,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   ctaText: {
-    color: "#fffdf8",
+    color: brand.colors.primaryText,
     fontSize: 22,
     fontWeight: "800",
     letterSpacing: -0.7,
@@ -93,12 +98,12 @@ const styles = StyleSheet.create({
     minHeight: 40,
     paddingHorizontal: 18,
     borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.62)",
+    backgroundColor: brand.colors.accentSoft,
     borderWidth: 1,
-    borderColor: "rgba(36,24,16,0.12)",
+    borderColor: brand.colors.border,
   },
   labText: {
-    color: "#241810",
+    color: brand.colors.text,
     fontSize: 14,
     fontWeight: "800",
     letterSpacing: 0,

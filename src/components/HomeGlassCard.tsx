@@ -1,24 +1,20 @@
 import { BlurView } from "expo-blur";
 import { StyleSheet, Text, View } from "react-native";
 
+import { brand } from "../theme/brand";
+
 export function HomeGlassCard() {
   return (
     <View style={styles.shell}>
-      <BlurView
-        intensity={58}
-        style={styles.blurLayer}
-        tint="light"
-      >
+      <BlurView intensity={58} style={styles.blurLayer} tint="light">
         <View pointerEvents="none" style={styles.softFill} />
         <View pointerEvents="none" style={styles.topShine} />
         <View pointerEvents="none" style={styles.innerGlow} />
 
         <View style={styles.content}>
-          <Text style={styles.brand}>NEXT MOVE</Text>
+          <Text style={styles.brand}>{brand.name}</Text>
           <Text style={styles.eyebrow}>볼더링 시뮬레이터</Text>
-          <Text style={styles.title}>
-            막힌 구간을{"\n"}직접 풀어보세요
-          </Text>
+          <Text style={styles.title}>막힌 구간을{"\n"}직접 풀어보세요</Text>
           <Text style={styles.description}>
             벽 사진을 넣고 움직임을 바로 맞춰보세요.
           </Text>
@@ -35,9 +31,9 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
     borderRadius: 34,
     overflow: "hidden",
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-    shadowColor: "#cabda8",
-    shadowOpacity: 0.16,
+    backgroundColor: "rgba(243, 229, 191, 0.14)",
+    shadowColor: brand.colors.text,
+    shadowOpacity: 0.12,
     shadowRadius: 24,
     shadowOffset: {
       width: 0,
@@ -53,7 +49,7 @@ const styles = StyleSheet.create({
   },
   softFill: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255, 255, 255, 0.16)",
+    backgroundColor: "rgba(255, 244, 215, 0.42)",
   },
   topShine: {
     position: "absolute",
@@ -61,13 +57,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.85)",
+    backgroundColor: "rgba(255, 253, 248, 0.72)",
   },
   innerGlow: {
     position: "absolute",
     inset: 18,
     borderRadius: 26,
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    backgroundColor: "rgba(224, 180, 40, 0.06)",
   },
   content: {
     flex: 1,
@@ -76,21 +72,21 @@ const styles = StyleSheet.create({
     gap: 22,
   },
   brand: {
-    color: "#1a1a1a",
+    color: brand.colors.text,
     fontSize: 22,
     fontWeight: "700",
     letterSpacing: 7,
     textAlign: "center",
   },
   eyebrow: {
-    color: "#7d7d7d",
+    color: brand.colors.mutedText,
     fontSize: 13,
     fontWeight: "700",
     letterSpacing: 5,
     textAlign: "center",
   },
   title: {
-    color: "#111111",
+    color: brand.colors.text,
     fontSize: 37,
     fontWeight: "800",
     lineHeight: 46,
@@ -98,7 +94,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   description: {
-    color: "#333333",
+    color: brand.colors.mutedText,
     fontSize: 16,
     lineHeight: 28,
     fontWeight: "500",
@@ -108,6 +104,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     borderRadius: 34,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.58)",
+    borderColor: "rgba(37, 29, 21, 0.16)",
   },
 });

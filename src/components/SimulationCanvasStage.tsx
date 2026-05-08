@@ -32,6 +32,7 @@ import type {
 import { AppHeader } from "./AppHeader";
 import { BottomTabBar } from "./BottomTabBar";
 import { ConfirmModal } from "./ConfirmModal";
+import { brand } from "../theme/brand";
 import { RouteHighlightOverlay } from "./RouteHighlightOverlay";
 import {
   SkeletonPoseOverlay,
@@ -469,7 +470,7 @@ export function SimulationCanvasStage({
   return (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
       <View style={styles.screen}>
-        <AppHeader showDivider={false} title="Next Move" />
+        <AppHeader showDivider={false} title={brand.name} />
 
         <View onLayout={handleViewportLayout} style={styles.canvasArea}>
           {viewport.width > 0 && viewport.height > 0 ? (
@@ -538,7 +539,7 @@ export function SimulationCanvasStage({
 
                     {isAnalyzingHolds || isSelectingRoute ? (
                       <View style={styles.loadingRow}>
-                        <ActivityIndicator color="#ffb37a" size="small" />
+                        <ActivityIndicator color={brand.colors.primary} size="small" />
                         <Text style={styles.loadingText}>{loadingText}</Text>
                       </View>
                     ) : null}
@@ -560,7 +561,7 @@ export function SimulationCanvasStage({
                         ]}
                       >
                         <Ionicons
-                          color="#171717"
+                          color={brand.colors.text}
                           name="refresh"
                           size={15}
                         />
@@ -779,11 +780,11 @@ export function SimulationCanvasStage({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f8f3eb",
+    backgroundColor: brand.colors.chrome,
   },
   screen: {
     flex: 1,
-    backgroundColor: "#f8f3eb",
+    backgroundColor: brand.colors.wall,
   },
   canvasArea: {
     flex: 1,
@@ -836,7 +837,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   infoEyebrow: {
-    color: "#ffb37a",
+    color: brand.colors.accent,
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 1.2,
@@ -854,7 +855,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.12)",
   },
   statusChipText: {
-    color: "#ffddb7",
+    color: brand.colors.accentSoft,
     fontSize: 11,
     fontWeight: "700",
   },
@@ -865,13 +866,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   loadingText: {
-    color: "#ffddb7",
+    color: brand.colors.accentSoft,
     fontSize: 12,
     fontWeight: "700",
   },
   errorText: {
     marginTop: 8,
-    color: "#ff9b8d",
+    color: brand.colors.danger,
     fontSize: 12,
     lineHeight: 16,
   },
@@ -885,13 +886,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: "#ffb37a",
+    backgroundColor: brand.colors.primary,
   },
   retryAnalysisButtonPressed: {
-    backgroundColor: "#ffc999",
+    backgroundColor: brand.colors.primaryPressed,
   },
   retryAnalysisButtonText: {
-    color: "#171717",
+    color: brand.colors.primaryText,
     fontSize: 12,
     fontWeight: "900",
   },
@@ -907,13 +908,13 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.2)",
   },
   reselectButtonText: {
-    color: "#ffddb7",
+    color: brand.colors.accentSoft,
     fontSize: 12,
     fontWeight: "800",
   },
   routeEditHint: {
     marginTop: 7,
-    color: "#ffddb7",
+    color: brand.colors.accentSoft,
     fontSize: 12,
     fontWeight: "800",
     lineHeight: 16,
@@ -934,13 +935,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 13,
-    backgroundColor: "#ffb37a",
+    backgroundColor: brand.colors.primary,
   },
   calibrationConfirmButtonPressed: {
-    backgroundColor: "#ffc999",
+    backgroundColor: brand.colors.primaryPressed,
   },
   calibrationConfirmButtonText: {
-    color: "#171717",
+    color: brand.colors.primaryText,
     fontSize: 12,
     fontWeight: "900",
   },

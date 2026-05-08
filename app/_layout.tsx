@@ -7,21 +7,23 @@ import * as SystemUI from "expo-system-ui";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { brand } from "../src/theme/brand";
+
 export default function RootLayout() {
   useEffect(() => {
-    void SystemUI.setBackgroundColorAsync("#f8f3eb");
+    void SystemUI.setBackgroundColorAsync(brand.colors.chrome);
   }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style="dark" />
+        <StatusBar backgroundColor={brand.colors.chrome} style="dark" />
         <Stack
           screenOptions={{
             headerShown: false,
             animation: "none",
             contentStyle: {
-              backgroundColor: "#f8f3eb",
+              backgroundColor: brand.colors.wall,
             },
           }}
         >

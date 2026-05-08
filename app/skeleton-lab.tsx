@@ -15,6 +15,7 @@ import {
   type SkeletonPoseOverlayHandle,
   type SkeletonPoseOverlayHistoryState,
 } from "../src/components/SkeletonPoseOverlay";
+import { brand } from "../src/theme/brand";
 
 type SkeletonLabMode = "calibrating" | "simulating";
 
@@ -213,7 +214,7 @@ const styles = StyleSheet.create({
     opacity: 0.34,
   },
   eyebrow: {
-    color: "#8f0000",
+    color: brand.colors.primary,
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 0,

@@ -2,6 +2,8 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { brand } from "../theme/brand";
+
 type BottomTabBarProps = {
   active: "simulation" | "settings";
 };
@@ -17,7 +19,11 @@ export function BottomTabBar({ active }: BottomTabBarProps) {
           style={[styles.tab, active === "simulation" && styles.tabActive]}
         >
           <MaterialCommunityIcons
-            color={active === "simulation" ? "#8f0000" : "#737373"}
+            color={
+              active === "simulation"
+                ? brand.colors.text
+                : brand.colors.inactive
+            }
             name="source-branch"
             size={24}
           />
@@ -33,7 +39,11 @@ export function BottomTabBar({ active }: BottomTabBarProps) {
           style={[styles.tab, active === "settings" && styles.tabActive]}
         >
           <Ionicons
-            color={active === "settings" ? "#8f0000" : "#737373"}
+            color={
+              active === "settings"
+                ? brand.colors.text
+                : brand.colors.inactive
+            }
             name={active === "settings" ? "settings" : "settings-outline"}
             size={24}
           />
@@ -51,8 +61,8 @@ export function BottomTabBar({ active }: BottomTabBarProps) {
 const styles = StyleSheet.create({
   wrapper: {
     borderTopWidth: 1,
-    borderTopColor: "#ebe4d8",
-    backgroundColor: "#f8f3eb",
+    borderTopColor: "rgba(37, 29, 21, 0.12)",
+    backgroundColor: brand.colors.chrome,
   },
   tabRow: {
     flexDirection: "row",
@@ -71,15 +81,15 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   tabActive: {
-    backgroundColor: "#f0e9de",
+    backgroundColor: brand.colors.wallLight,
   },
   label: {
-    color: "#737373",
+    color: brand.colors.inactive,
     fontSize: 12,
     fontWeight: "500",
   },
   labelActive: {
-    color: "#8f0000",
+    color: brand.colors.text,
     fontWeight: "700",
   },
 });

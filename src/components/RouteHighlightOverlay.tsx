@@ -3,6 +3,7 @@ import { StyleSheet, View } from "react-native";
 import Svg, { Circle, G, Polygon } from "react-native-svg";
 
 import { analysisPointToViewportPoint } from "../lib/simulationViewport";
+import { brand } from "../theme/brand";
 import type {
   RouteSelectionResult,
   SimulationDetectedObject,
@@ -74,7 +75,7 @@ export function RouteHighlightOverlay({
     ],
   );
 
-  const accentColor = route?.routeColor.hex ?? "#ffb37a";
+  const accentColor = route?.routeColor.hex ?? brand.colors.primary;
 
   return (
     <View pointerEvents="none" style={styles.overlay}>

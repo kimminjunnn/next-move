@@ -1,5 +1,7 @@
 import { Modal, Pressable, StyleSheet, Text, View, type ModalProps } from "react-native";
 
+import { brand } from "../theme/brand";
+
 type ConfirmModalProps = {
   body: string;
   cancelLabel?: string;
@@ -89,9 +91,9 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: "#e9e2d7",
-    backgroundColor: "#fffaf2",
-    shadowColor: "#9f8f76",
+    borderColor: brand.colors.border,
+    backgroundColor: brand.colors.surface,
+    shadowColor: brand.colors.text,
     shadowOpacity: 0.18,
     shadowRadius: 24,
     shadowOffset: {
@@ -101,14 +103,14 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   modalTitle: {
-    color: "#171717",
+    color: brand.colors.text,
     fontSize: 22,
     fontWeight: "800",
     letterSpacing: -0.5,
   },
   modalBody: {
     marginTop: 8,
-    color: "#5a5a5a",
+    color: brand.colors.mutedText,
     fontSize: 15,
     lineHeight: 22,
   },
@@ -126,20 +128,20 @@ const styles = StyleSheet.create({
   },
   modalSecondaryButton: {
     borderWidth: 1,
-    borderColor: "#ddd4c5",
-    backgroundColor: "#f8f3eb",
+    borderColor: brand.colors.border,
+    backgroundColor: brand.colors.wallLight,
   },
   modalPrimaryButton: {
-    backgroundColor: "#8f0000",
+    backgroundColor: brand.colors.danger,
   },
   modalActionText: {
     fontSize: 15,
     fontWeight: "800",
   },
   modalSecondaryButtonText: {
-    color: "#4b4b4b",
+    color: brand.colors.text,
   },
   modalPrimaryButtonText: {
-    color: "#fffdf8",
+    color: brand.colors.primaryText,
   },
 });

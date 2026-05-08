@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppHeader } from "./AppHeader";
 import { BottomTabBar } from "./BottomTabBar";
 import { SimulationBackground } from "./SimulationBackground";
+import { brand } from "../theme/brand";
 
 type SimulationInputStageProps = {
   onOpenCamera: () => void;
@@ -19,7 +20,7 @@ export function SimulationInputStage({
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
       <View style={styles.screen}>
         <SimulationBackground />
-        <AppHeader showDivider={false} title="Next Move" />
+        <AppHeader showDivider={false} title={brand.name} />
 
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -28,7 +29,7 @@ export function SimulationInputStage({
         >
           <Pressable onPress={onOpenCamera} style={styles.primaryCard}>
             <View style={styles.cameraIconBox}>
-              <Ionicons color="#151515" name="camera" size={54} />
+              <Ionicons color={brand.colors.primaryText} name="camera" size={54} />
             </View>
 
             <Text style={styles.primaryTitle}>벽 사진 촬영하기</Text>
@@ -39,7 +40,7 @@ export function SimulationInputStage({
 
           <Pressable onPress={onOpenLibrary} style={styles.secondaryCard}>
             <View style={styles.secondaryIconBox}>
-              <Ionicons color="#545454" name="images-outline" size={34} />
+              <Ionicons color={brand.colors.surface} name="images-outline" size={34} />
             </View>
 
             <View style={styles.secondaryCopy}>
@@ -47,7 +48,7 @@ export function SimulationInputStage({
               <Text style={styles.secondaryBody}>기존 사진으로 시뮬레이션</Text>
             </View>
 
-            <Ionicons color="#6d6d6d" name="chevron-forward" size={30} />
+            <Ionicons color={brand.colors.accent} name="chevron-forward" size={30} />
           </Pressable>
         </ScrollView>
 
@@ -60,11 +61,11 @@ export function SimulationInputStage({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f7f3eb",
+    backgroundColor: brand.colors.chrome,
   },
   screen: {
     flex: 1,
-    backgroundColor: "#f7f3eb",
+    backgroundColor: brand.colors.wall,
   },
   scrollView: {
     flex: 1,
@@ -83,10 +84,10 @@ const styles = StyleSheet.create({
     paddingVertical: 34,
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: "#efe6d8",
-    backgroundColor: "rgba(255, 255, 255, 0.88)",
-    shadowColor: "#cbbda6",
-    shadowOpacity: 0.14,
+    borderColor: brand.colors.primary,
+    backgroundColor: "rgba(255, 244, 215, 0.96)",
+    shadowColor: brand.colors.primary,
+    shadowOpacity: 0.2,
     shadowRadius: 18,
     shadowOffset: {
       width: 0,
@@ -100,11 +101,11 @@ const styles = StyleSheet.create({
     width: 184,
     height: 184,
     borderRadius: 30,
-    backgroundColor: "#e7e2d9",
+    backgroundColor: brand.colors.primary,
   },
   primaryTitle: {
     marginTop: 30,
-    color: "#111111",
+    color: brand.colors.text,
     fontSize: 32,
     fontWeight: "800",
     lineHeight: 38,
@@ -113,7 +114,7 @@ const styles = StyleSheet.create({
   },
   primaryBody: {
     marginTop: 14,
-    color: "#383838",
+    color: brand.colors.mutedText,
     fontSize: 15,
     lineHeight: 23,
     fontWeight: "500",
@@ -127,8 +128,8 @@ const styles = StyleSheet.create({
     minHeight: 132,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#e9e2d7",
-    backgroundColor: "rgba(244, 239, 230, 0.94)",
+    borderColor: brand.colors.accent,
+    backgroundColor: "rgba(220, 239, 240, 0.94)",
   },
   secondaryIconBox: {
     alignItems: "center",
@@ -136,21 +137,21 @@ const styles = StyleSheet.create({
     width: 78,
     height: 78,
     borderRadius: 18,
-    backgroundColor: "#e7e2d9",
+    backgroundColor: brand.colors.accent,
   },
   secondaryCopy: {
     flex: 1,
     gap: 4,
   },
   secondaryTitle: {
-    color: "#111111",
+    color: brand.colors.text,
     fontSize: 20,
     fontWeight: "800",
     lineHeight: 26,
     letterSpacing: -0.4,
   },
   secondaryBody: {
-    color: "#444444",
+    color: brand.colors.mutedText,
     fontSize: 14,
     lineHeight: 20,
     fontWeight: "500",

@@ -16,6 +16,7 @@ import { BottomTabBar } from "../../src/components/BottomTabBar";
 import { ConfirmModal } from "../../src/components/ConfirmModal";
 import { SimulationBackground } from "../../src/components/SimulationBackground";
 import { useBodyProfileStore } from "../../src/store/useBodyProfileStore";
+import { brand } from "../../src/theme/brand";
 import { deriveWingspan, type WingspanMode } from "../../src/types/bodyProfile";
 
 function toDisplayNumber(value: number) {
@@ -151,7 +152,7 @@ export default function SettingsScreen() {
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
       <View style={styles.screen}>
         <SimulationBackground />
-        <AppHeader showDivider={false} title="Next Move" />
+        <AppHeader showDivider={false} title={brand.name} />
 
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -160,7 +161,7 @@ export default function SettingsScreen() {
         >
           <View style={styles.heroCard}>
             <View style={styles.heroBadge}>
-              <Ionicons color="#7a1f12" name="body-outline" size={16} />
+              <Ionicons color={brand.colors.primaryText} name="body-outline" size={16} />
               <Text style={styles.heroBadgeText}>BODY PROFILE</Text>
             </View>
 
@@ -180,7 +181,7 @@ export default function SettingsScreen() {
               </View>
 
               <View style={styles.metricIconBox}>
-                <Ionicons color="#262626" name="resize-outline" size={22} />
+                <Ionicons color={brand.colors.surface} name="resize-outline" size={22} />
               </View>
             </View>
 
@@ -260,7 +261,7 @@ export default function SettingsScreen() {
                 onPress={handleRestoreAuto}
                 style={styles.inlineAction}
               >
-                <Ionicons color="#8f0000" name="refresh" size={14} />
+                <Ionicons color={brand.colors.primaryText} name="refresh" size={14} />
                 <Text style={styles.inlineActionText}>자동 계산 복원</Text>
               </Pressable>
             </View>
@@ -278,7 +279,7 @@ export default function SettingsScreen() {
 
             <Pressable onPress={handleOpenConfirm} style={styles.confirmButton}>
               <Text style={styles.confirmButtonText}>확인</Text>
-              <Ionicons color="#fffdf8" name="arrow-forward" size={24} />
+              <Ionicons color={brand.colors.primaryText} name="arrow-forward" size={24} />
             </Pressable>
           </View>
         </ScrollView>
@@ -302,11 +303,11 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f8f3eb",
+    backgroundColor: brand.colors.chrome,
   },
   screen: {
     flex: 1,
-    backgroundColor: "#f8f3eb",
+    backgroundColor: brand.colors.wall,
   },
   scrollView: {
     flex: 1,
@@ -323,10 +324,10 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: "#efe6d8",
-    backgroundColor: "rgba(255, 255, 255, 0.88)",
-    shadowColor: "#cbbda6",
-    shadowOpacity: 0.14,
+    borderColor: brand.colors.primary,
+    backgroundColor: "rgba(255, 244, 215, 0.96)",
+    shadowColor: brand.colors.primary,
+    shadowOpacity: 0.18,
     shadowRadius: 18,
     shadowOffset: {
       width: 0,
@@ -342,17 +343,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "#f4eadf",
+    backgroundColor: brand.colors.primary,
   },
   heroBadgeText: {
-    color: "#7a1f12",
+    color: brand.colors.primaryText,
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 1.8,
   },
   heroTitle: {
     marginTop: 22,
-    color: "#171717",
+    color: brand.colors.text,
     fontSize: 32,
     fontWeight: "800",
     lineHeight: 38,
@@ -360,7 +361,7 @@ const styles = StyleSheet.create({
   },
   heroBody: {
     marginTop: 12,
-    color: "#4f4f4f",
+    color: brand.colors.mutedText,
     fontSize: 16,
     lineHeight: 25,
     fontWeight: "500",
@@ -371,8 +372,8 @@ const styles = StyleSheet.create({
     paddingVertical: 22,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#e9e2d7",
-    backgroundColor: "rgba(244, 239, 230, 0.94)",
+    borderColor: brand.colors.border,
+    backgroundColor: "rgba(255, 244, 215, 0.94)",
   },
   fieldHeaderRow: {
     flexDirection: "row",
@@ -385,13 +386,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   label: {
-    color: "#1e1e1e",
+    color: brand.colors.text,
     fontSize: 24,
     fontWeight: "800",
     letterSpacing: -0.6,
   },
   fieldBody: {
-    color: "#525252",
+    color: brand.colors.mutedText,
     fontSize: 14,
     lineHeight: 21,
   },
@@ -401,7 +402,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 16,
-    backgroundColor: "#ece3d6",
+    backgroundColor: brand.colors.accent,
   },
   modeBadge: {
     paddingHorizontal: 14,
@@ -409,20 +410,20 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   modeBadgeAuto: {
-    backgroundColor: "#f1e7d9",
+    backgroundColor: brand.colors.primary,
   },
   modeBadgeCustom: {
-    backgroundColor: "#e9ddd1",
+    backgroundColor: brand.colors.surfaceWarm,
   },
   modeBadgeText: {
     fontSize: 12,
     fontWeight: "800",
   },
   modeBadgeTextAuto: {
-    color: "#8f0000",
+    color: brand.colors.primaryText,
   },
   modeBadgeTextCustom: {
-    color: "#5b4636",
+    color: brand.colors.mutedText,
   },
   inputShell: {
     flexDirection: "row",
@@ -431,33 +432,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#ddd4c5",
-    backgroundColor: "#f8f3eb",
+    borderColor: brand.colors.border,
+    backgroundColor: brand.colors.background,
   },
   inputShellInvalid: {
-    borderColor: "#c8524d",
-    backgroundColor: "#fff5f3",
+    borderColor: brand.colors.danger,
+    backgroundColor: brand.colors.dangerSoft,
   },
   input: {
     flex: 1,
-    color: "#161616",
+    color: brand.colors.text,
     fontSize: 24,
     fontWeight: "700",
     letterSpacing: -0.5,
   },
   inputUnit: {
-    color: "#7b7468",
+    color: brand.colors.inactive,
     fontSize: 16,
     fontWeight: "700",
   },
   helper: {
     flex: 1,
-    color: "#6b6b6b",
+    color: brand.colors.mutedText,
     fontSize: 13,
     lineHeight: 19,
   },
   errorText: {
-    color: "#b33a35",
+    color: brand.colors.danger,
     fontSize: 13,
     fontWeight: "700",
     lineHeight: 19,
@@ -475,10 +476,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: "#f8f1e7",
+    backgroundColor: brand.colors.primary,
   },
   inlineActionText: {
-    color: "#8f0000",
+    color: brand.colors.primaryText,
     fontSize: 13,
     fontWeight: "800",
   },
@@ -490,13 +491,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   footerTitle: {
-    color: "#1a1a1a",
+    color: brand.colors.text,
     fontSize: 18,
     fontWeight: "800",
     letterSpacing: -0.4,
   },
   footerBody: {
-    color: "#5d5d5d",
+    color: brand.colors.mutedText,
     fontSize: 14,
     lineHeight: 21,
   },
@@ -507,8 +508,8 @@ const styles = StyleSheet.create({
     gap: 12,
     minHeight: 62,
     borderRadius: 24,
-    backgroundColor: "#8f0000",
-    shadowColor: "#8f0000",
+    backgroundColor: brand.colors.primary,
+    shadowColor: brand.colors.primary,
     shadowOpacity: 0.26,
     shadowRadius: 20,
     shadowOffset: {
@@ -518,7 +519,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   confirmButtonText: {
-    color: "#fffdf8",
+    color: brand.colors.primaryText,
     fontSize: 22,
     fontWeight: "800",
     letterSpacing: -0.7,

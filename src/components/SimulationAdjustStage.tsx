@@ -5,6 +5,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { brand } from "../theme/brand";
 import {
   clampTranslations,
   clampValue,
@@ -262,7 +263,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 58,
     borderRadius: 20,
-    backgroundColor: "#8f0000",
+    backgroundColor: brand.colors.primary,
     shadowColor: "#000000",
     shadowOpacity: 0.2,
     shadowRadius: 16,
@@ -273,7 +274,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   confirmButtonLabel: {
-    color: "#ffffff",
+    color: brand.colors.primaryText,
     fontSize: 18,
     lineHeight: 24,
     fontWeight: "800",
