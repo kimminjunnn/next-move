@@ -21,11 +21,11 @@ import {
 } from "../lib/simulationViewport";
 import { toggleRouteIncludedObjectIds } from "../lib/routeSelectionState";
 import { shouldShowWallAnalysisRetry } from "../lib/wallAnalysisRetry";
+import type { Point2D } from "../types/geometry";
 import type {
   RouteSelectionResult,
   SimulationDetectedObject,
   SimulationPhoto,
-  SimulationPoint,
   SimulationPhotoTransform,
   WallAnalysisResult,
 } from "../types/simulation";
@@ -202,14 +202,14 @@ export function SimulationCanvasStage({
     simulationCueTranslateY,
   ]);
 
-  function getDistanceSquared(a: SimulationPoint, b: SimulationPoint) {
+  function getDistanceSquared(a: Point2D, b: Point2D) {
     const x = a.x - b.x;
     const y = a.y - b.y;
     return x * x + y * y;
   }
 
   function isPointInPolygon(
-    point: SimulationPoint,
+    point: Point2D,
     polygon: SimulationDetectedObject["contour"],
   ) {
     let isInside = false;
@@ -237,7 +237,7 @@ export function SimulationCanvasStage({
   }
 
   function selectNearestHold(
-    sourcePoint: SimulationPoint,
+    sourcePoint: Point2D,
     objects: SimulationDetectedObject[],
   ) {
     const holds = objects.filter((object) => object.kind === "hold");
@@ -263,7 +263,7 @@ export function SimulationCanvasStage({
   }
 
   function findContainingHold(
-    sourcePoint: SimulationPoint,
+    sourcePoint: Point2D,
     objects: SimulationDetectedObject[],
   ) {
     return (
@@ -274,7 +274,7 @@ export function SimulationCanvasStage({
     );
   }
 
-  async function handleCanvasPress(point: SimulationPoint) {
+  async function handleCanvasPress(point: Point2D) {
     if (
       viewport.width <= 0 ||
       viewport.height <= 0 ||
@@ -331,7 +331,7 @@ export function SimulationCanvasStage({
     }
   }
 
-  function handleRouteHoldToggle(point: SimulationPoint) {
+  function handleRouteHoldToggle(point: Point2D) {
     if (
       viewport.width <= 0 ||
       viewport.height <= 0 ||

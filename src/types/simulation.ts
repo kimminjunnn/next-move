@@ -1,11 +1,8 @@
+import type { Point2D } from "./geometry";
+
 export type SimulationPhotoSource = "camera" | "library";
 
 export type SimulationMode = "input" | "adjust" | "canvas";
-
-export type SimulationPoint = {
-  x: number;
-  y: number;
-};
 
 export type SimulationPhoto = {
   uri: string;
@@ -21,7 +18,7 @@ export type SimulationPhotoTransform = {
   offsetYRatio: number;
 };
 
-export type SimulationHoldContour = SimulationPoint[];
+export type SimulationHoldContour = Point2D[];
 
 export type SimulationDetectedObjectKind = "hold" | "volume";
 
@@ -34,7 +31,7 @@ export type SimulationDetectedObject = {
     width: number;
     height: number;
   };
-  center: SimulationPoint;
+  center: Point2D;
   contour: SimulationHoldContour;
   color: {
     hex: string;

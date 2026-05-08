@@ -46,14 +46,14 @@ import {
   shouldAllowSkeletonPinchScale,
 } from "../lib/skeletonPoseInteraction";
 import { useBodyProfileStore } from "../store/useBodyProfileStore";
-import type { SimulationPoint } from "../types/simulation";
+import type { Point2D } from "../types/geometry";
 import type {
   SkeletonBodyModel,
-  SkeletonControlJointId,
+  SkeletonControlJointName,
   SkeletonDragResolutionMode,
-  SkeletonEndpointId,
-  SkeletonJointMap,
-  SkeletonJointId,
+  SkeletonEndpointName,
+  SkeletonLandmarkMap,
+  SkeletonLandmarkName,
   SkeletonPose,
   SkeletonStraightCoreDragState,
 } from "../types/skeletonPose";
@@ -61,7 +61,7 @@ import type {
 type SkeletonPoseOverlayProps = {
   allowEmptySpacePinchScale?: boolean;
   allowPinchScaleInSimulation?: boolean;
-  initialCenter?: SimulationPoint;
+  initialCenter?: Point2D;
   mode: "calibrating" | "simulating";
   onHistoryStateChange?: (state: SkeletonPoseOverlayHistoryState) => void;
   viewportHeight: number;
@@ -78,21 +78,21 @@ export type SkeletonPoseOverlayHistoryState = {
   canUndo: boolean;
 };
 
-const ENDPOINTS: SkeletonEndpointId[] = [
+const ENDPOINTS: SkeletonEndpointName[] = [
   "leftHand",
   "rightHand",
   "leftFoot",
   "rightFoot",
 ];
 
-const CONTROL_JOINTS: SkeletonControlJointId[] = [
+const CONTROL_JOINTS: SkeletonControlJointName[] = [
   "leftElbow",
   "rightElbow",
   "leftKnee",
   "rightKnee",
 ];
 
-const BONES: Array<[SkeletonJointId, SkeletonJointId]> = [
+const BONES: Array<[SkeletonLandmarkName, SkeletonLandmarkName]> = [
   ["head", "neck"],
   ["neck", "torso"],
   ["torso", "pelvis"],
@@ -122,8 +122,8 @@ const MAX_DRAG_FRAME_DISTANCE = 22;
 const MIN_DRAG_FRAME_DISTANCE = 10;
 
 type SkeletonDragTarget =
-  | { kind: "endpoint"; id: SkeletonEndpointId }
-  | { kind: "joint"; id: SkeletonControlJointId }
+  | { kind: "endpoint"; id: SkeletonEndpointName }
+  | { kind: "joint"; id: SkeletonControlJointName }
   | { kind: "head" }
   | { kind: "body" };
 
@@ -157,7 +157,7 @@ function getOverlayMetrics(scale: number) {
   };
 }
 
-function getEndpointAccessibilityLabel(endpointId: SkeletonEndpointId) {
+function getEndpointAccessibilityLabel(endpointId: SkeletonEndpointName) {
   switch (endpointId) {
     case "leftHand":
       return "왼손 이동";
@@ -170,7 +170,7 @@ function getEndpointAccessibilityLabel(endpointId: SkeletonEndpointId) {
   }
 }
 
-function getJointAccessibilityLabel(jointId: SkeletonControlJointId) {
+function getJointAccessibilityLabel(jointId: SkeletonControlJointName) {
   switch (jointId) {
     case "leftElbow":
       return "왼팔꿈치 이동";
@@ -195,7 +195,7 @@ function getDragTargetKey(target: SkeletonDragTarget | null) {
   return target.id;
 }
 
-function getDistanceSquared(a: SimulationPoint, b: SimulationPoint) {
+function getDistanceSquared(a: Point2D, b: Point2D) {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
 
@@ -219,7 +219,7 @@ function createDefaultPose(
   bodyModel: SkeletonBodyModel,
   viewportWidth: number,
   viewportHeight: number,
-  initialCenter?: SimulationPoint,
+  initialCenter?: Point2D,
 ) {
   const defaultPose = createDefaultSkeletonPose(
     bodyModel,
@@ -244,7 +244,7 @@ function scalePoseAroundCenter(
   scaleRatio: number,
 ): SkeletonPose {
   const center = getSkeletonCenter(pose);
-  const joints = Object.entries(pose.joints).reduce<SkeletonJointMap>(
+  const joints = Object.entries(pose.joints).reduce<SkeletonLandmarkMap>(
     (scaledJoints, [jointId, point]) => ({
       ...scaledJoints,
       [jointId]: {
@@ -252,7 +252,7 @@ function scalePoseAroundCenter(
         y: center.y + (point.y - center.y) * scaleRatio,
       },
     }),
-    {} as SkeletonJointMap,
+    {} as SkeletonLandmarkMap,
   );
 
   return { joints };
@@ -295,7 +295,7 @@ export const SkeletonPoseOverlay = forwardRef<
   const activeDragModeRef = useRef<SkeletonDragResolutionMode | null>(null);
   const activeStraightCoreDragStateRef =
     useRef<SkeletonStraightCoreDragState | null>(null);
-  const dragStartPointRef = useRef<SimulationPoint | null>(null);
+  const dragStartPointRef = useRef<Point2D | null>(null);
   const dragStartPoseRef = useRef<SkeletonPose | null>(null);
   const dragStartSnapshotRef = useRef<SkeletonPoseSnapshot | null>(null);
   const historyRef = useRef<SkeletonPoseHistory>(createSkeletonPoseHistory());
@@ -448,7 +448,7 @@ export const SkeletonPoseOverlay = forwardRef<
     setActiveControlId(getDragTargetKey(target));
   }
 
-  function beginEndpointDrag(endpointId: SkeletonEndpointId) {
+  function beginEndpointDrag(endpointId: SkeletonEndpointName) {
     activeDragModeRef.current = null;
     activeStraightCoreDragStateRef.current =
       createSkeletonStraightCoreDragState(
@@ -465,7 +465,7 @@ export const SkeletonPoseOverlay = forwardRef<
     setActiveDragTarget({ kind: "endpoint", id: endpointId });
   }
 
-  function beginJointDrag(jointId: SkeletonControlJointId) {
+  function beginJointDrag(jointId: SkeletonControlJointName) {
     activeDragModeRef.current = null;
     activeStraightCoreDragStateRef.current = null;
     dragStartPointRef.current = poseRef.current.joints[jointId];
@@ -519,9 +519,9 @@ export const SkeletonPoseOverlay = forwardRef<
     });
   }
 
-  function findNearestDragTarget(point: SimulationPoint) {
+  function findNearestDragTarget(point: Point2D) {
     const candidates: Array<{
-      center: SimulationPoint;
+      center: Point2D;
       maxDistance: number;
       scoreMultiplier: number;
       target: SkeletonDragTarget;
@@ -576,7 +576,7 @@ export const SkeletonPoseOverlay = forwardRef<
     return nearest?.target ?? null;
   }
 
-  function beginNearestDrag(point: SimulationPoint) {
+  function beginNearestDrag(point: Point2D) {
     const target = findNearestDragTarget(point);
 
     if (!target) {
@@ -827,7 +827,7 @@ export const SkeletonPoseOverlay = forwardRef<
 
           return responders;
         },
-        {} as Record<SkeletonEndpointId, ReturnType<typeof PanResponder.create>>,
+        {} as Record<SkeletonEndpointName, ReturnType<typeof PanResponder.create>>,
       ),
     [],
   );
@@ -854,7 +854,7 @@ export const SkeletonPoseOverlay = forwardRef<
           return responders;
         },
         {} as Record<
-          SkeletonControlJointId,
+          SkeletonControlJointName,
           ReturnType<typeof PanResponder.create>
         >,
       ),

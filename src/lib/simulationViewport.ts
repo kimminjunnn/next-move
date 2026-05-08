@@ -1,8 +1,5 @@
-import type {
-  SimulationPoint,
-  SimulationPhoto,
-  SimulationPhotoTransform,
-} from "../types/simulation";
+import type { Point2D } from "../types/geometry";
+import type { SimulationPhoto, SimulationPhotoTransform } from "../types/simulation";
 
 type ImageDimensions = {
   width: number;
@@ -150,12 +147,12 @@ export function resolveRenderedPhotoRect(
 }
 
 export function viewportPointToPhotoPoint(
-  point: SimulationPoint,
+  point: Point2D,
   photo: SimulationPhoto,
   transform: SimulationPhotoTransform,
   viewportWidth: number,
   viewportHeight: number,
-): SimulationPoint {
+): Point2D {
   const renderedRect = resolveRenderedPhotoRect(
     photo,
     transform,
@@ -180,12 +177,12 @@ export function viewportPointToPhotoPoint(
 }
 
 export function photoPointToViewportPoint(
-  point: SimulationPoint,
+  point: Point2D,
   photo: SimulationPhoto,
   transform: SimulationPhotoTransform,
   viewportWidth: number,
   viewportHeight: number,
-): SimulationPoint {
+): Point2D {
   const renderedRect = resolveRenderedPhotoRect(
     photo,
     transform,
@@ -200,10 +197,10 @@ export function photoPointToViewportPoint(
 }
 
 export function analysisPointToPhotoPoint(
-  point: SimulationPoint,
+  point: Point2D,
   analysisImage: ImageDimensions,
   photo: SimulationPhoto,
-): SimulationPoint {
+): Point2D {
   return {
     x: (point.x / analysisImage.width) * photo.width,
     y: (point.y / analysisImage.height) * photo.height,
@@ -211,10 +208,10 @@ export function analysisPointToPhotoPoint(
 }
 
 export function photoPointToAnalysisPoint(
-  point: SimulationPoint,
+  point: Point2D,
   photo: SimulationPhoto,
   analysisImage: ImageDimensions,
-): SimulationPoint {
+): Point2D {
   return {
     x: (point.x / photo.width) * analysisImage.width,
     y: (point.y / photo.height) * analysisImage.height,
@@ -222,13 +219,13 @@ export function photoPointToAnalysisPoint(
 }
 
 export function analysisPointToViewportPoint(
-  point: SimulationPoint,
+  point: Point2D,
   analysisImage: ImageDimensions,
   photo: SimulationPhoto,
   transform: SimulationPhotoTransform,
   viewportWidth: number,
   viewportHeight: number,
-): SimulationPoint {
+): Point2D {
   return photoPointToViewportPoint(
     analysisPointToPhotoPoint(point, analysisImage, photo),
     photo,
@@ -239,13 +236,13 @@ export function analysisPointToViewportPoint(
 }
 
 export function viewportPointToAnalysisPoint(
-  point: SimulationPoint,
+  point: Point2D,
   photo: SimulationPhoto,
   analysisImage: ImageDimensions,
   transform: SimulationPhotoTransform,
   viewportWidth: number,
   viewportHeight: number,
-): SimulationPoint {
+): Point2D {
   return photoPointToAnalysisPoint(
     viewportPointToPhotoPoint(
       point,

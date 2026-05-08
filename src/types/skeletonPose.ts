@@ -1,18 +1,18 @@
-import type { SimulationPoint } from "./simulation";
+import type { Point2D } from "./geometry";
 
-export type SkeletonEndpointId =
+export type SkeletonEndpointName =
   | "leftHand"
   | "rightHand"
   | "leftFoot"
   | "rightFoot";
 
-export type SkeletonControlJointId =
+export type SkeletonControlJointName =
   | "leftElbow"
   | "rightElbow"
   | "leftKnee"
   | "rightKnee";
 
-export type SkeletonJointId =
+export type SkeletonLandmarkName =
   | "head"
   | "neck"
   | "torso"
@@ -30,7 +30,7 @@ export type SkeletonJointId =
   | "leftFoot"
   | "rightFoot";
 
-export type SkeletonJointMap = Record<SkeletonJointId, SimulationPoint>;
+export type SkeletonLandmarkMap = Record<SkeletonLandmarkName, Point2D>;
 
 export type SkeletonBodyModel = {
   height: number;
@@ -48,7 +48,7 @@ export type SkeletonBodyModel = {
 };
 
 export type SkeletonPose = {
-  joints: SkeletonJointMap;
+  joints: SkeletonLandmarkMap;
 };
 
 export type SkeletonDragResolutionMode = "pose" | "core";
@@ -64,23 +64,23 @@ export type SkeletonStraightCoreDragState = {
 };
 
 export type SkeletonDragInput = {
-  endpointId: SkeletonEndpointId;
-  target: SimulationPoint;
+  endpointId: SkeletonEndpointName;
+  target: Point2D;
   previousMode?: SkeletonDragResolutionMode | null;
   straightCoreDragAllowed?: boolean;
 };
 
 export type SkeletonJointDragInput = {
-  jointId: SkeletonControlJointId;
-  target: SimulationPoint;
+  jointId: SkeletonControlJointName;
+  target: Point2D;
   previousMode?: SkeletonDragResolutionMode | null;
   coreDragAllowed?: boolean;
 };
 
 export type SkeletonHeadDragInput = {
-  target: SimulationPoint;
+  target: Point2D;
 };
 
 export type SkeletonCoreDragInput = {
-  delta: SimulationPoint;
+  delta: Point2D;
 };
