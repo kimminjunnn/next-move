@@ -1,6 +1,6 @@
 import { Image, StyleSheet, View } from "react-native";
 
-const gymWallBackground = require("../../assets/rupa_theme/gym-wall-bg-bright.png");
+const gymWallBackground = require("../../assets/rupa_theme/backgrounds/gym-wall-bg-bright.png");
 
 export function HomeHeroHolds() {
   return (
