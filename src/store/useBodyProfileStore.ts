@@ -49,7 +49,7 @@ export const useBodyProfileStore = create<BodyProfileStore>()(
         })),
     }),
     {
-      name: "next-move-body-profile",
+      name: "rupa-body-profile",
       storage: createJSONStorage(() => AsyncStorage),
     },
   ),
