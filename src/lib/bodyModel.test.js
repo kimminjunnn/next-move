@@ -3,15 +3,17 @@ require("sucrase/register");
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { createSkeletonBodyModel } = require("./bodyModel.ts");
-
-const BASE_PIXELS_PER_CM = 2;
-const SHOULDER_WIDTH_RATIO = 0.23;
-const UPPER_ARM_RATIO = 0.1725;
-const FOREARM_RATIO = 0.1585;
-const HAND_RATIO = 0.0575;
-const THIGH_RATIO = 0.2405;
-const SHIN_RATIO = 0.252;
+const {
+  BASE_PIXELS_PER_CM,
+  FOREARM_RATIO,
+  HAND_RATIO,
+  SHIN_RATIO,
+  SHOULDER_WIDTH_RATIO,
+  THIGH_RATIO,
+  UPPER_ARM_RATIO,
+  clampSkeletonScale,
+  createSkeletonBodyModel,
+} = require("./bodyModel.ts");
 
 function nearlyEqual(actual, expected, message) {
   assert.ok(
@@ -23,24 +25,26 @@ function nearlyEqual(actual, expected, message) {
 test("sizes arm bones from wingspan while preserving average arm segment proportions", () => {
   const height = 170;
   const wingspan = 190;
-  const scale = 1;
   const model = createSkeletonBodyModel(
     { height, wingspan, wingspanMode: "custom" },
-    scale,
+    1,
   );
-
   const shoulderWidthCm = height * SHOULDER_WIDTH_RATIO;
   const oneSideReachCm = (wingspan - shoulderWidthCm) / 2;
   const armRatioTotal = UPPER_ARM_RATIO + FOREARM_RATIO + HAND_RATIO;
-  const expectedUpperArm =
-    oneSideReachCm * (UPPER_ARM_RATIO / armRatioTotal) * BASE_PIXELS_PER_CM;
-  const expectedForearm =
-    oneSideReachCm *
-    ((FOREARM_RATIO + HAND_RATIO) / armRatioTotal) *
-    BASE_PIXELS_PER_CM;
 
-  nearlyEqual(model.upperArm, expectedUpperArm, "upper arm length");
-  nearlyEqual(model.forearm, expectedForearm, "forearm reach length");
+  nearlyEqual(
+    model.upperArm,
+    oneSideReachCm * (UPPER_ARM_RATIO / armRatioTotal) * BASE_PIXELS_PER_CM,
+    "upper arm length",
+  );
+  nearlyEqual(
+    model.forearm,
+    oneSideReachCm *
+      ((FOREARM_RATIO + HAND_RATIO) / armRatioTotal) *
+      BASE_PIXELS_PER_CM,
+    "forearm reach length",
+  );
   nearlyEqual(
     model.upperArm + model.forearm,
     oneSideReachCm * BASE_PIXELS_PER_CM,
@@ -75,4 +79,10 @@ test("keeps non-arm skeleton segments tied to average height ratios", () => {
   assert.equal(longReachModel.shoulderWidth, regularReachModel.shoulderWidth);
   assert.ok(longReachModel.upperArm > regularReachModel.upperArm);
   assert.ok(longReachModel.forearm > regularReachModel.forearm);
+});
+
+test("clamps skeleton scale to supported bounds", () => {
+  assert.equal(clampSkeletonScale(0.1), 0.2);
+  assert.equal(clampSkeletonScale(0.75), 0.75);
+  assert.equal(clampSkeletonScale(2), 1.25);
 });

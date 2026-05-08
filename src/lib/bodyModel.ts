@@ -1,28 +1,27 @@
+// 실제 신체 정보 cm를 받아서, 스켈레톤 계산기가 쓸 화면용 뼈 길이 모델로 바꾸는 파일
+
 import type { BodyProfile } from "../types/bodyProfile";
 import type { SkeletonBodyModel } from "../types/skeletonPose";
+import { clampNumber } from "./number";
 
-const BASE_PIXELS_PER_CM = 2;
-const UPPER_ARM_HEIGHT_RATIO = 0.1725;
-const FOREARM_HEIGHT_RATIO = 0.1585;
-const HAND_HEIGHT_RATIO = 0.0575;
-const THIGH_HEIGHT_RATIO = 0.2405;
-const LOWER_LEG_HEIGHT_RATIO = 0.252;
-const SHOULDER_WIDTH_HEIGHT_RATIO = 0.23;
-const HIP_WIDTH_HEIGHT_RATIO = 0.16;
+export const BASE_PIXELS_PER_CM = 2;
+export const SHOULDER_WIDTH_RATIO = 0.2225;
+export const HIP_WIDTH_RATIO = 0.1165;
+export const UPPER_ARM_RATIO = 0.1725;
+export const FOREARM_RATIO = 0.1585;
+export const HAND_RATIO = 0.0575;
+export const THIGH_RATIO = 0.2405;
+export const SHIN_RATIO = 0.252;
 const ARM_REACH_HEIGHT_RATIO_TOTAL =
-  UPPER_ARM_HEIGHT_RATIO + FOREARM_HEIGHT_RATIO + HAND_HEIGHT_RATIO;
+  UPPER_ARM_RATIO + FOREARM_RATIO + HAND_RATIO;
 
 export const DEFAULT_SKELETON_SCALE = 0.45;
 export const MIN_SKELETON_SCALE = 0.2;
 export const MAX_SKELETON_SCALE = 1.25;
 export const SKELETON_SCALE_STEP = 0.05;
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
 export function clampSkeletonScale(scale: number) {
-  return clamp(scale, MIN_SKELETON_SCALE, MAX_SKELETON_SCALE);
+  return clampNumber(scale, MIN_SKELETON_SCALE, MAX_SKELETON_SCALE);
 }
 
 function cmToViewportPoints(value: number, scale: number) {
@@ -30,16 +29,14 @@ function cmToViewportPoints(value: number, scale: number) {
 }
 
 function createArmLengthsCm(profile: BodyProfile) {
-  const shoulderWidth = profile.height * SHOULDER_WIDTH_HEIGHT_RATIO;
+  const shoulderWidth = profile.height * SHOULDER_WIDTH_RATIO;
   const oneSideReach = Math.max(1, (profile.wingspan - shoulderWidth) / 2);
 
   return {
-    upperArm:
-      oneSideReach * (UPPER_ARM_HEIGHT_RATIO / ARM_REACH_HEIGHT_RATIO_TOTAL),
+    upperArm: oneSideReach * (UPPER_ARM_RATIO / ARM_REACH_HEIGHT_RATIO_TOTAL),
     forearm:
       oneSideReach *
-      ((FOREARM_HEIGHT_RATIO + HAND_HEIGHT_RATIO) /
-        ARM_REACH_HEIGHT_RATIO_TOTAL),
+      ((FOREARM_RATIO + HAND_RATIO) / ARM_REACH_HEIGHT_RATIO_TOTAL),
   };
 }
 
@@ -58,19 +55,16 @@ export function createSkeletonBodyModel(
     neckToTorso: cmToViewportPoints(profile.height * 0.11, clampedScale),
     torsoToPelvis: cmToViewportPoints(profile.height * 0.17, clampedScale),
     shoulderWidth: cmToViewportPoints(
-      profile.height * SHOULDER_WIDTH_HEIGHT_RATIO,
+      profile.height * SHOULDER_WIDTH_RATIO,
       clampedScale,
     ),
     hipWidth: cmToViewportPoints(
-      profile.height * HIP_WIDTH_HEIGHT_RATIO,
+      profile.height * HIP_WIDTH_RATIO,
       clampedScale,
     ),
     upperArm: cmToViewportPoints(armLengths.upperArm, clampedScale),
     forearm: cmToViewportPoints(armLengths.forearm, clampedScale),
-    thigh: cmToViewportPoints(profile.height * THIGH_HEIGHT_RATIO, clampedScale),
-    shin: cmToViewportPoints(
-      profile.height * LOWER_LEG_HEIGHT_RATIO,
-      clampedScale,
-    ),
+    thigh: cmToViewportPoints(profile.height * THIGH_RATIO, clampedScale),
+    shin: cmToViewportPoints(profile.height * SHIN_RATIO, clampedScale),
   };
 }
