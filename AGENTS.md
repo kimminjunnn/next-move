@@ -44,16 +44,52 @@ Do not let implementation sub-agents edit the same files in parallel. For this r
 - Vision service: `vision-service/app/`, `vision-service/tools/`, `vision-service/requirements.txt`
 - Docs: `docs/`, `AGENTS.md`
 
-## Compound Engineering Contracts
+## Main Loop: Plan -> Work -> Review -> Compound
 
-For multi-part work, leave a compact contract before implementation:
+Use the same four-step loop for both 5-minute fixes and multi-day features. Scale the time spent in each step to the size and risk of the task.
 
-- Task contract: the behavior to change, non-goals, owned files, and expected output.
-- Interface contract: request/response shapes, env vars, filesystem inputs, and error semantics.
-- Verification contract: exact commands or manual checks that prove the work.
-- Artifact contract: what belongs in git and what is generated locally.
+The first three steps produce the change. The fourth step improves the system that produces future changes.
 
-Keep these contracts in the plan, PR body, or a short doc under `docs/` when useful. Do not create heavyweight process documents for tiny fixes.
+### 1. Plan
+
+- Understand the requirement: what to build, why it matters, and what constraints apply.
+- Inspect the codebase: find similar features, contracts, and existing patterns before designing a solution.
+- Check external references when needed: framework docs, API docs, and current best practices.
+- Design the solution: identify the approach, affected files, and cross-surface contracts across Expo, Nest API, and FastAPI.
+- Validate the plan: check for missing states, unclear boundaries, and mismatched assumptions before editing.
+- For multi-part work, write a compact contract before implementation:
+  - Task contract: behavior change, non-goals, owned files, and expected output.
+  - Interface contract: request/response shapes, env vars, filesystem inputs, and error semantics.
+  - Verification contract: exact commands or manual checks that prove the work.
+  - Artifact contract: what belongs in git and what is generated locally.
+
+### 2. Work
+
+- Isolate the work with a branch or git worktree when the change is large, risky, or likely to overlap with other edits.
+- Execute the plan step by step, keeping edits small and aligned with the existing structure.
+- Run verification after meaningful changes: tests, linting, type checks, compile checks, or targeted manual checks.
+- Track progress and revise the plan when new facts invalidate an assumption.
+- If the plan is clear, trust the implementation path; do not churn code line by line without a reason.
+
+### 3. Review
+
+- Review for correctness first: does the change match the task contract exactly?
+- Review for quality second: maintainability, type safety, error handling, test coverage, and consistency with local patterns.
+- Use priority labels for findings:
+  - P1: must fix before completion.
+  - P2: should fix when practical.
+  - P3: improvement or follow-up.
+- When using sub-agents or parallel review, keep write sets separate and have each reviewer focus on specific risks.
+- Fix review findings, then rerun the relevant verification.
+- Record recurring failure patterns so the same issue is easier to catch next time.
+
+### 4. Compound
+
+- Capture what worked, what failed, and what insight can be reused.
+- Turn repeated lessons into durable instructions in `AGENTS.md`, a focused doc under `docs/`, or a reusable agent/task pattern.
+- When creating knowledge docs, use YAML frontmatter with metadata such as `title`, `tags`, `category`, and `updated` so the note is searchable.
+- Ask whether the system can catch this class of issue automatically next time through tests, types, lint rules, scripts, docs, or agent instructions.
+- Keep the compound step lightweight for tiny fixes; for larger work, treat it as part of finishing the task rather than optional cleanup.
 
 ## Verification
 
