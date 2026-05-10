@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rupa Harness"
+  short_description: "Rupa phase/step 하네스 워크플로우"
+  default_prompt: "Rupa 하네스 워크플로우로 phase 기반 Codex 작업을 계획하거나 실행해줘."

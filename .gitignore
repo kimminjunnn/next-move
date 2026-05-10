@@ -43,6 +43,8 @@ vision-service/.env
 
 # local service artifacts
 .superpowers/
+__pycache__/
+phases/**/step*-output.json
 nest-api/uploads/
 vision-service/**/__pycache__/
 vision-service/debug_outputs*/

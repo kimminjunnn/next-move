@@ -1,0 +1,16 @@
+{
+  "harness": {
+    "executor": "python3 scripts/execute.py <phase-dir>",
+    "defaultSandbox": "workspace-write",
+    "defaultApproval": "on-request",
+    "defaultSessionMode": "ephemeral",
+    "rules": [
+      "Use AGENTS.md as the primary repository instruction file.",
+      "Read docs/PRD.md, docs/ARCHITECTURE.md, docs/ADR.md, and docs/UI_GUIDE.md before designing phase steps.",
+      "Do not copy full local Markdown documents into phase files, step output JSON, commits, or new docs.",
+      "Do not commit, push, or create branches unless explicitly requested or the matching CLI option is used.",
+      "Keep generated artifacts and private gym photos out of git by default."
+    ]
+  }
+}
+

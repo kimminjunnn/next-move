@@ -1,0 +1,24 @@
+{
+  "project": "Rupa",
+  "phase": "rupa-rig-friendly-assets",
+  "steps": [
+    {
+      "step": 0,
+      "name": "preserve-current-assets",
+      "status": "completed",
+      "summary": "Current 2D active PNGs were snapshotted to assets/rupa_theme/character/back-v3-2d before replacement work."
+    },
+    {
+      "step": 1,
+      "name": "generate-rig-friendly-assets",
+      "status": "completed",
+      "summary": "Generated back-v4-rig-friendly assets, promoted non-head body/limb/hand/foot/tail/chalk-bag assets to active back/, and aligned rig native sizes."
+    },
+    {
+      "step": 2,
+      "name": "verify-and-document",
+      "status": "completed",
+      "summary": "Updated the rig design spec with rollback points and ran npm test, npx tsc --noEmit, git diff --check, and PNG metadata checks."
+    }
+  ]
+}

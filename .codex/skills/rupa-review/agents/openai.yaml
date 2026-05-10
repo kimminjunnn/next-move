@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rupa Review"
+  short_description: "Rupa 변경사항 제품/아키텍처 리뷰"
+  default_prompt: "Rupa 리뷰 체크리스트로 현재 변경사항을 검토해줘."
