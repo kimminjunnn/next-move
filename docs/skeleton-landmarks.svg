@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="720" viewBox="0 0 920 720" role="img" aria-labelledby="title desc">
+  <title id="title">Skeleton Landmark Diagram</title>
+  <desc id="desc">A labeled diagram showing each SkeletonLandmarkName on a simple human skeleton.</desc>
+  <rect width="920" height="720" fill="#f7f3eb"/>
+  <g transform="translate(250 60)">
+    <style>
+      .bone { stroke: #2b2118; stroke-width: 8; stroke-linecap: round; }
+      .point { fill: #fff; stroke: #1f1711; stroke-width: 4; }
+      .endpoint { fill: #ffd49a; }
+      .control { fill: #bde7ff; }
+      .core { fill: #d8f4c5; }
+      .label { font: 18px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #241810; }
+      .hint { font: 15px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #6f5a45; }
+      .guide { stroke: #a58b72; stroke-width: 2; stroke-dasharray: 6 6; }
+    </style>
+
+    <!-- Landmark coordinates -->
+    <!-- core: head(210,38), neck(210,100), torso(210,180), pelvis(210,275) -->
+    <!-- shoulders: leftShoulder(120,120), rightShoulder(300,120) -->
+    <!-- arms: leftElbow(78,235), leftHand(55,355), rightElbow(342,235), rightHand(365,355) -->
+    <!-- hips: leftHip(145,295), rightHip(275,295) -->
+    <!-- legs: leftKnee(118,450), leftFoot(92,615), rightKnee(302,450), rightFoot(328,615) -->
+
+    <line class="bone" x1="210" y1="38" x2="210" y2="100"/>
+    <line class="bone" x1="210" y1="100" x2="210" y2="180"/>
+    <line class="bone" x1="210" y1="180" x2="210" y2="275"/>
+    <line class="bone" x1="210" y1="100" x2="120" y2="120"/>
+    <line class="bone" x1="210" y1="100" x2="300" y2="120"/>
+    <line class="bone" x1="120" y1="120" x2="78" y2="235"/>
+    <line class="bone" x1="78" y1="235" x2="55" y2="355"/>
+    <line class="bone" x1="300" y1="120" x2="342" y2="235"/>
+    <line class="bone" x1="342" y1="235" x2="365" y2="355"/>
+    <line class="bone" x1="210" y1="275" x2="145" y2="295"/>
+    <line class="bone" x1="210" y1="275" x2="275" y2="295"/>
+    <line class="bone" x1="145" y1="295" x2="118" y2="450"/>
+    <line class="bone" x1="118" y1="450" x2="92" y2="615"/>
+    <line class="bone" x1="275" y1="295" x2="302" y2="450"/>
+    <line class="bone" x1="302" y1="450" x2="328" y2="615"/>
+
+    <circle class="point core" cx="210" cy="38" r="19"/>
+    <circle class="point core" cx="210" cy="100" r="14"/>
+    <circle class="point core" cx="210" cy="180" r="14"/>
+    <circle class="point core" cx="210" cy="275" r="14"/>
+    <circle class="point core" cx="120" cy="120" r="14"/>
+    <circle class="point core" cx="300" cy="120" r="14"/>
+    <circle class="point control" cx="78" cy="235" r="15"/>
+    <circle class="point endpoint" cx="55" cy="355" r="17"/>
+    <circle class="point control" cx="342" cy="235" r="15"/>
+    <circle class="point endpoint" cx="365" cy="355" r="17"/>
+    <circle class="point core" cx="145" cy="295" r="14"/>
+    <circle class="point core" cx="275" cy="295" r="14"/>
+    <circle class="point control" cx="118" cy="450" r="15"/>
+    <circle class="point endpoint" cx="92" cy="615" r="17"/>
+    <circle class="point control" cx="302" cy="450" r="15"/>
+    <circle class="point endpoint" cx="328" cy="615" r="17"/>
+
+    <g class="label">
+      <text x="238" y="44">head</text>
+      <text x="238" y="106">neck</text>
+      <text x="238" y="186">torso</text>
+      <text x="238" y="281">pelvis</text>
+      <text x="-4" y="106">leftShoulder</text>
+      <text x="318" y="106">rightShoulder</text>
+      <text x="-58" y="240">leftElbow</text>
+      <text x="362" y="240">rightElbow</text>
+      <text x="-42" y="360">leftHand</text>
+      <text x="386" y="360">rightHand</text>
+      <text x="40" y="300">leftHip</text>
+      <text x="298" y="300">rightHip</text>
+      <text x="18" y="455">leftKnee</text>
+      <text x="322" y="455">rightKnee</text>
+      <text x="-6" y="620">leftFoot</text>
+      <text x="348" y="620">rightFoot</text>
+    </g>
+  </g>
+
+  <g transform="translate(625 92)">
+    <style>
+      .legend-title { font: 700 20px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #241810; }
+      .legend-text { font: 17px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #241810; }
+    </style>
+    <text class="legend-title" x="0" y="0">색상 의미</text>
+    <circle cx="10" cy="40" r="10" fill="#ffd49a" stroke="#1f1711" stroke-width="3"/>
+    <text class="legend-text" x="30" y="46">Endpoint: 손/발 끝점</text>
+    <circle cx="10" cy="80" r="10" fill="#bde7ff" stroke="#1f1711" stroke-width="3"/>
+    <text class="legend-text" x="30" y="86">Control joint: 팔꿈치/무릎</text>
+    <circle cx="10" cy="120" r="10" fill="#d8f4c5" stroke="#1f1711" stroke-width="3"/>
+    <text class="legend-text" x="30" y="126">Core landmark: 몸통 기준점</text>
+  </g>
+</svg>
