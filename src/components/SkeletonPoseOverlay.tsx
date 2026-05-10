@@ -43,7 +43,16 @@ import {
   getSkeletonOverlayPointerEvents,
   shouldAllowSkeletonPinchScale,
 } from "../lib/skeletonPoseInteraction";
+import { getSkeletonCharacterOverlayOpacity } from "../lib/skeletonCharacterVisibility";
+import {
+  getRupaCharacterTransformOptions,
+  RUPA_BACK_CHARACTER_PARTS,
+} from "../lib/rupaCharacterRig";
 import { useBodyProfileStore } from "../store/useBodyProfileStore";
+import type {
+  CharacterRigPart,
+  CharacterRigTransformOptions,
+} from "../types/characterRig";
 import type { Point2D } from "../types/geometry";
 import type {
   SkeletonBodyModel,
@@ -54,10 +63,16 @@ import type {
   SkeletonPointName,
   SkeletonPose,
 } from "../types/skeletonPose";
+import { CharacterLayer } from "./RupaCharacterLayer";
 
 type SkeletonPoseOverlayProps = {
   allowEmptySpacePinchScale?: boolean;
   allowPinchScaleInSimulation?: boolean;
+  characterParts?: ReadonlyArray<CharacterRigPart>;
+  getCharacterTransformOptions?: (
+    pose: SkeletonPose,
+    activeControlId: string | null,
+  ) => CharacterRigTransformOptions;
   initialCenter?: Point2D;
   mode: "calibrating" | "simulating";
   onHistoryStateChange?: (state: SkeletonPoseOverlayHistoryState) => void;
@@ -262,6 +277,8 @@ export const SkeletonPoseOverlay = forwardRef<
   {
     allowEmptySpacePinchScale = false,
     allowPinchScaleInSimulation = false,
+    characterParts = RUPA_BACK_CHARACTER_PARTS,
+    getCharacterTransformOptions = getRupaCharacterTransformOptions,
     initialCenter,
     mode,
     onHistoryStateChange,
@@ -288,6 +305,15 @@ export const SkeletonPoseOverlay = forwardRef<
       canUndo: false,
     });
   const [activeControlId, setActiveControlId] = useState<string | null>(null);
+  const shouldShowCharacter = mode === "simulating";
+  const characterOpacity = getSkeletonCharacterOverlayOpacity({
+    activeControlId,
+    characterVisible: shouldShowCharacter,
+  });
+  const characterTransformOptions = useMemo(
+    () => getCharacterTransformOptions(pose, activeControlId),
+    [activeControlId, getCharacterTransformOptions, pose],
+  );
   const activeDragTargetRef = useRef<SkeletonDragTarget | null>(null);
   const activeDragModeRef = useRef<SkeletonDragResolutionMode | null>(null);
   const dragStartPointRef = useRef<Point2D | null>(null);
@@ -295,6 +321,7 @@ export const SkeletonPoseOverlay = forwardRef<
   const dragStartSnapshotRef = useRef<SkeletonPoseSnapshot | null>(null);
   const historyRef = useRef<SkeletonPoseHistory>(createSkeletonPoseHistory());
   const bodyModelRef = useRef(bodyModel);
+  const metricsRef = useRef(metrics);
   const modeRef = useRef(mode);
   const profileRef = useRef(profile);
   const poseRef = useRef(pose);
@@ -314,6 +341,10 @@ export const SkeletonPoseOverlay = forwardRef<
   useEffect(() => {
     bodyModelRef.current = bodyModel;
   }, [bodyModel]);
+
+  useEffect(() => {
+    metricsRef.current = metrics;
+  }, [metrics]);
 
   useEffect(() => {
     scaleRef.current = scale;
@@ -506,6 +537,24 @@ export const SkeletonPoseOverlay = forwardRef<
   }
 
   function findNearestDragTarget(point: Point2D) {
+    const isCharacterInteraction = modeRef.current === "simulating";
+    const currentMetrics = metricsRef.current;
+    const endpointMaxDistance =
+      (isCharacterInteraction
+        ? currentMetrics.endpointHitSize * 1.35
+        : currentMetrics.endpointHitSize) / 2;
+    const jointMaxDistance =
+      (isCharacterInteraction
+        ? currentMetrics.jointHitSize * 1.6
+        : currentMetrics.jointHitSize) / 2;
+    const headMaxDistance =
+      (isCharacterInteraction
+        ? currentMetrics.headHitSize * 1.45
+        : currentMetrics.headHitSize) / 2;
+    const bodyMaxDistance =
+      (isCharacterInteraction
+        ? currentMetrics.bodyHitSize * 1.85
+        : currentMetrics.bodyHitSize) / 2;
     const candidates: Array<{
       center: Point2D;
       maxDistance: number;
@@ -514,25 +563,25 @@ export const SkeletonPoseOverlay = forwardRef<
     }> = [
       ...CONTROL_JOINTS.map((jointName) => ({
         center: poseRef.current.joints[jointName],
-        maxDistance: metrics.jointHitSize / 2,
+        maxDistance: jointMaxDistance,
         scoreMultiplier: JOINT_PRIORITY_BONUS,
         target: { kind: "joint", id: jointName } as SkeletonDragTarget,
       })),
       {
         center: poseRef.current.joints.head,
-        maxDistance: metrics.headHitSize / 2,
+        maxDistance: headMaxDistance,
         scoreMultiplier: HEAD_PRIORITY_BONUS,
         target: { kind: "head" },
       },
       ...ENDPOINTS.map((endpointName) => ({
         center: getEndpointPosition(poseRef.current, endpointName),
-        maxDistance: metrics.endpointHitSize / 2,
+        maxDistance: endpointMaxDistance,
         scoreMultiplier: ENDPOINT_PRIORITY_BONUS,
         target: { kind: "endpoint", id: endpointName } as SkeletonDragTarget,
       })),
       {
         center: getSkeletonCenter(poseRef.current),
-        maxDistance: metrics.bodyHitSize / 2,
+        maxDistance: bodyMaxDistance,
         scoreMultiplier: BODY_PRIORITY_BONUS,
         target: { kind: "body" },
       },
@@ -880,12 +929,21 @@ export const SkeletonPoseOverlay = forwardRef<
       )}
       style={styles.overlay}
     >
+      <CharacterLayer
+        bodyModel={bodyModel}
+        opacity={characterOpacity.character}
+        parts={characterParts}
+        pose={pose}
+        transformOptions={characterTransformOptions}
+        visible={shouldShowCharacter}
+      />
+
       <View pointerEvents="none" style={styles.skeletonLayer}>
         <Svg height="100%" width="100%">
           {BONES.map(([from, to]) => (
             <Line
               key={`${from}-${to}`}
-              opacity={activeControlId ? 0.72 : 1}
+              opacity={characterOpacity.bone}
               stroke="rgba(255,255,255,0.72)"
               strokeLinecap="round"
               strokeWidth={metrics.boneStrokeWidth}
@@ -904,7 +962,11 @@ export const SkeletonPoseOverlay = forwardRef<
                 ? "rgba(255,179,122,0.24)"
                 : "rgba(255,255,255,0.08)"
             }
-            opacity={activeControlId && activeControlId !== "head" ? 0.62 : 1}
+            opacity={
+              activeControlId === "head" && !shouldShowCharacter
+                ? 1
+                : characterOpacity.head
+            }
             r={bodyModel.headRadius}
             stroke={
               activeControlId === "head" ? "#ffb37a" : "rgba(255,255,255,0.72)"
@@ -924,7 +986,11 @@ export const SkeletonPoseOverlay = forwardRef<
                 ? "#ffb37a"
                 : "rgba(122,214,255,0.74)"
             }
-            opacity={activeControlId && activeControlId !== "body" ? 0.55 : 1}
+            opacity={
+              activeControlId === "body" && !shouldShowCharacter
+                ? 1
+                : characterOpacity.body
+            }
             r={
               activeControlId === "body"
                 ? metrics.bodyActiveRadius
@@ -944,7 +1010,11 @@ export const SkeletonPoseOverlay = forwardRef<
                 cx={point.x}
                 cy={point.y}
                 fill={isActive ? "#ffb37a" : "rgba(255,255,255,0.74)"}
-                opacity={activeControlId && !isActive ? 0.5 : 1}
+                opacity={
+                  isActive && !shouldShowCharacter
+                    ? 1
+                    : characterOpacity.inactiveJoint
+                }
                 r={isActive ? metrics.jointActiveRadius : metrics.jointRadius}
                 stroke="rgba(15,15,15,0.84)"
                 strokeWidth={2.2}
@@ -962,7 +1032,11 @@ export const SkeletonPoseOverlay = forwardRef<
                 cx={point.x}
                 cy={point.y}
                 fill={isActive ? "#ffb37a" : "rgba(255,255,255,0.88)"}
-                opacity={activeControlId && !isActive ? 0.58 : 1}
+                opacity={
+                  isActive && !shouldShowCharacter
+                    ? 1
+                    : characterOpacity.inactiveEndpoint
+                }
                 r={
                   isActive
                     ? metrics.endpointActiveRadius
@@ -978,24 +1052,33 @@ export const SkeletonPoseOverlay = forwardRef<
 
       <View
         {...bodyResponder.panHandlers}
-        accessibilityHint="끌어서 스켈레톤 전체 위치를 조정합니다."
-        accessibilityLabel="스켈레톤 전체 이동"
+        accessibilityHint={
+          shouldShowCharacter
+            ? "끌어서 캐릭터 전체 위치를 조정합니다."
+            : "끌어서 스켈레톤 전체 위치를 조정합니다."
+        }
+        accessibilityLabel={
+          shouldShowCharacter ? "캐릭터 전체 이동" : "스켈레톤 전체 이동"
+        }
         style={[
           styles.bodyHitArea,
           (() => {
             const center = getSkeletonCenter(pose);
+            const hitSize = shouldShowCharacter
+              ? metrics.bodyHitSize * 1.85
+              : metrics.bodyHitSize;
             const frame = {
-              left: center.x - metrics.bodyHitSize / 2,
-              top: center.y - metrics.bodyHitSize / 2,
+              left: center.x - hitSize / 2,
+              top: center.y - hitSize / 2,
             };
 
             hitFramesRef.current.body = frame;
 
             return {
               ...frame,
-              width: metrics.bodyHitSize,
-              height: metrics.bodyHitSize,
-              borderRadius: metrics.bodyHitSize / 2,
+              width: hitSize,
+              height: hitSize,
+              borderRadius: hitSize / 2,
             };
           })(),
         ]}
@@ -1009,18 +1092,21 @@ export const SkeletonPoseOverlay = forwardRef<
           styles.headHitArea,
           (() => {
             const point = pose.joints.head;
+            const hitSize = shouldShowCharacter
+              ? metrics.headHitSize * 1.45
+              : metrics.headHitSize;
             const frame = {
-              left: point.x - metrics.headHitSize / 2,
-              top: point.y - metrics.headHitSize / 2,
+              left: point.x - hitSize / 2,
+              top: point.y - hitSize / 2,
             };
 
             hitFramesRef.current.head = frame;
 
             return {
               ...frame,
-              width: metrics.headHitSize,
-              height: metrics.headHitSize,
-              borderRadius: metrics.headHitSize / 2,
+              width: hitSize,
+              height: hitSize,
+              borderRadius: hitSize / 2,
             };
           })(),
         ]}
@@ -1029,9 +1115,12 @@ export const SkeletonPoseOverlay = forwardRef<
       {ENDPOINTS.map((endpointName) => {
         const point = pose.joints[endpointName];
         const hitFrameKey = `endpoint:${endpointName}`;
+        const hitSize = shouldShowCharacter
+          ? metrics.endpointHitSize * 1.35
+          : metrics.endpointHitSize;
         const frame = {
-          left: point.x - metrics.endpointHitSize / 2,
-          top: point.y - metrics.endpointHitSize / 2,
+          left: point.x - hitSize / 2,
+          top: point.y - hitSize / 2,
         };
 
         hitFramesRef.current[hitFrameKey] = frame;
@@ -1046,9 +1135,9 @@ export const SkeletonPoseOverlay = forwardRef<
               styles.handleHitArea,
               {
                 ...frame,
-                width: metrics.endpointHitSize,
-                height: metrics.endpointHitSize,
-                borderRadius: metrics.endpointHitSize / 2,
+                width: hitSize,
+                height: hitSize,
+                borderRadius: hitSize / 2,
               },
             ]}
           />
@@ -1058,9 +1147,12 @@ export const SkeletonPoseOverlay = forwardRef<
       {CONTROL_JOINTS.map((jointName) => {
         const point = pose.joints[jointName];
         const hitFrameKey = `joint:${jointName}`;
+        const hitSize = shouldShowCharacter
+          ? metrics.jointHitSize * 1.6
+          : metrics.jointHitSize;
         const frame = {
-          left: point.x - metrics.jointHitSize / 2,
-          top: point.y - metrics.jointHitSize / 2,
+          left: point.x - hitSize / 2,
+          top: point.y - hitSize / 2,
         };
 
         hitFramesRef.current[hitFrameKey] = frame;
@@ -1075,9 +1167,9 @@ export const SkeletonPoseOverlay = forwardRef<
               styles.jointHitArea,
               {
                 ...frame,
-                width: metrics.jointHitSize,
-                height: metrics.jointHitSize,
-                borderRadius: metrics.jointHitSize / 2,
+                width: hitSize,
+                height: hitSize,
+                borderRadius: hitSize / 2,
               },
             ]}
           />

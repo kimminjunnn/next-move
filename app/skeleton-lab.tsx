@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -15,6 +15,11 @@ import {
   type SkeletonPoseOverlayHandle,
   type SkeletonPoseOverlayHistoryState,
 } from "../src/components/SkeletonPoseOverlay";
+import {
+  RUPA_BACK_CHARACTER_VARIANTS,
+  getRupaCharacterVariant,
+  type RupaCharacterVariantId,
+} from "../src/lib/rupaCharacterRig";
 import { brand } from "../src/theme/brand";
 
 type SkeletonLabMode = "calibrating" | "simulating";
@@ -32,6 +37,8 @@ export default function SkeletonLabScreen() {
   const router = useRouter();
   const skeletonOverlayRef = useRef<SkeletonPoseOverlayHandle>(null);
   const [mode, setMode] = useState<SkeletonLabMode>("simulating");
+  const [characterVariantId, setCharacterVariantId] =
+    useState<RupaCharacterVariantId>("illustrated");
   const [historyState, setHistoryState] =
     useState<SkeletonPoseOverlayHistoryState>({
       canRedo: false,
@@ -39,6 +46,10 @@ export default function SkeletonLabScreen() {
     });
   const [resetKey, setResetKey] = useState(0);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
+  const characterVariant = useMemo(
+    () => getRupaCharacterVariant(characterVariantId),
+    [characterVariantId],
+  );
 
   function handleViewportLayout(event: LayoutChangeEvent) {
     const { width, height } = event.nativeEvent.layout;
@@ -135,6 +146,33 @@ export default function SkeletonLabScreen() {
           </Pressable>
         </View>
 
+        <View style={styles.variantToolbar}>
+          {RUPA_BACK_CHARACTER_VARIANTS.map((variant) => {
+            const isActive = variant.id === characterVariantId;
+
+            return (
+              <Pressable
+                accessibilityLabel={`루파 캐릭터 ${variant.label} 버전`}
+                key={variant.id}
+                onPress={() => setCharacterVariantId(variant.id)}
+                style={[
+                  styles.variantButton,
+                  isActive ? styles.variantButtonActive : null,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.variantText,
+                    isActive ? styles.variantTextActive : null,
+                  ]}
+                >
+                  {variant.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         <View onLayout={handleViewportLayout} style={styles.stage}>
           <View pointerEvents="none" style={styles.wallGrid}>
             {HOLD_POINTS.map((hold) => (
@@ -159,6 +197,7 @@ export default function SkeletonLabScreen() {
             <SkeletonPoseOverlay
               key={`${mode}-${resetKey}`}
               ref={skeletonOverlayRef}
+              characterParts={characterVariant.parts}
               initialCenter={{
                 x: viewport.width * 0.5,
                 y: viewport.height * 0.48,
@@ -231,6 +270,34 @@ const styles = StyleSheet.create({
     padding: 4,
     borderRadius: 18,
     backgroundColor: "rgba(36,24,16,0.08)",
+  },
+  variantToolbar: {
+    flexDirection: "row",
+    alignSelf: "stretch",
+    gap: 8,
+  },
+  variantButton: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 38,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.62)",
+    borderWidth: 1,
+    borderColor: "rgba(36,24,16,0.1)",
+  },
+  variantButtonActive: {
+    backgroundColor: "#0f7f7c",
+    borderColor: "rgba(15,127,124,0.42)",
+  },
+  variantText: {
+    color: "rgba(36,24,16,0.7)",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  variantTextActive: {
+    color: "#fffdf8",
   },
   segmentButton: {
     flex: 1,
