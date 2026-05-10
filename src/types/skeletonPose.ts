@@ -12,7 +12,7 @@ export type SkeletonControlJointName =
   | "leftKnee"
   | "rightKnee";
 
-export type SkeletonLandmarkName =
+export type SkeletonPointName =
   | "head"
   | "neck"
   | "torso"
@@ -30,7 +30,7 @@ export type SkeletonLandmarkName =
   | "leftFoot"
   | "rightFoot";
 
-export type SkeletonLandmarkMap = Record<SkeletonLandmarkName, Point2D>;
+export type SkeletonPointMap = Record<SkeletonPointName, Point2D>;
 
 export type SkeletonBodyModel = {
   height: number;
@@ -48,7 +48,7 @@ export type SkeletonBodyModel = {
 };
 
 export type SkeletonPose = {
-  joints: SkeletonLandmarkMap;
+  joints: SkeletonPointMap;
 };
 
 export type SkeletonDragResolutionMode = "pose" | "core";
@@ -64,14 +64,14 @@ export type SkeletonStraightCoreDragState = {
 };
 
 export type SkeletonDragInput = {
-  endpointId: SkeletonEndpointName;
+  endpointName: SkeletonEndpointName;
   target: Point2D;
   previousMode?: SkeletonDragResolutionMode | null;
   straightCoreDragAllowed?: boolean;
 };
 
 export type SkeletonJointDragInput = {
-  jointId: SkeletonControlJointName;
+  jointName: SkeletonControlJointName;
   target: Point2D;
   previousMode?: SkeletonDragResolutionMode | null;
   coreDragAllowed?: boolean;

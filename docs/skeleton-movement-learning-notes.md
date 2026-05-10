@@ -9,10 +9,10 @@
    - 타입 관련 변수명을 이해했다.
    - 이해하기 쉽게 이름을 재정의했다.
    - `SimulationPoint` -> `Point2D`
-   - `SkeletonEndpointId` -> `SkeletonEndpointName`
-   - `SkeletonControlJointId` -> `SkeletonControlJointName`
-   - `SkeletonJointId` -> `SkeletonLandmarkName`
-   - `SkeletonJointMap` -> `SkeletonLandmarkMap`
+   - 말단 핸들러 타입 이름을 `SkeletonEndpointName`으로 정리했다.
+   - 관절 핸들러 타입 이름을 `SkeletonControlJointName`으로 정리했다.
+   - 전체 스켈레톤 기준점 타입 이름을 `SkeletonPointName`으로 정리했다.
+   - `SkeletonJointMap` -> `SkeletonPointMap`
 
 2. `src/lib/bodyModel.ts`
    - 키, 윙스팬, scale로 화면용 신체 길이 모델을 만드는 흐름을 이해했다.
@@ -31,9 +31,10 @@
 4. `src/lib/skeletonPoseSolver.ts`
    - 파일명이 “스켈레톤 자세를 계산해서 풀어내는 모듈”이라는 뜻임을 이해했다.
    - 튜닝 상수들은 지금 당장 분리하지 않고, solver 흐름을 더 이해한 뒤 그룹화하기로 했다.
-   - `SKELETON_JOINT_IDS`를 `SKELETON_LANDMARK_NAMES`로 바꿨다.
-   - `SKELETON_LANDMARK_NAMES`가 `SkeletonLandmarkName` 타입을 만족하는지 검사하게 했다.
-   - landmark 위치를 보기 위한 그림 `docs/skeleton-landmarks.svg`를 만들었다.
+   - `SKELETON_JOINT_IDS`를 `SKELETON_POINT_NAMES`로 바꿨다.
+   - `SKELETON_POINT_NAMES`가 `SkeletonPointName` 타입을 만족하는지 검사하게 했다.
+   - 드래그 입력 필드도 `endpointName`, `jointName`로 바꿨다.
+   - point 위치를 보기 위한 그림 `docs/skeleton-points.svg`를 만들었다.
    - `add`, `subtract`, `scaleVector`, `distance`, `midpoint` 같은 기본 좌표 계산 함수의 역할을 확인했다.
    - `smoothStep()`은 0..1 반응값을 부드럽게 만들어 몸통 따라감이 튀지 않게 하는 함수임을 이해했다.
    - `clampDistance()`는 방향은 유지하되, 최대 거리보다 멀면 가능한 거리 안으로 끌어오는 함수임을 이해했다.

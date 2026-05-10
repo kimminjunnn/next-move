@@ -52,8 +52,8 @@ import type {
   SkeletonControlJointName,
   SkeletonDragResolutionMode,
   SkeletonEndpointName,
-  SkeletonLandmarkMap,
-  SkeletonLandmarkName,
+  SkeletonPointMap,
+  SkeletonPointName,
   SkeletonPose,
   SkeletonStraightCoreDragState,
 } from "../types/skeletonPose";
@@ -92,7 +92,7 @@ const CONTROL_JOINTS: SkeletonControlJointName[] = [
   "rightKnee",
 ];
 
-const BONES: Array<[SkeletonLandmarkName, SkeletonLandmarkName]> = [
+const BONES: Array<[SkeletonPointName, SkeletonPointName]> = [
   ["head", "neck"],
   ["neck", "torso"],
   ["torso", "pelvis"],
@@ -157,8 +157,8 @@ function getOverlayMetrics(scale: number) {
   };
 }
 
-function getEndpointAccessibilityLabel(endpointId: SkeletonEndpointName) {
-  switch (endpointId) {
+function getEndpointAccessibilityLabel(endpointName: SkeletonEndpointName) {
+  switch (endpointName) {
     case "leftHand":
       return "왼손 이동";
     case "rightHand":
@@ -170,8 +170,8 @@ function getEndpointAccessibilityLabel(endpointId: SkeletonEndpointName) {
   }
 }
 
-function getJointAccessibilityLabel(jointId: SkeletonControlJointName) {
-  switch (jointId) {
+function getJointAccessibilityLabel(jointName: SkeletonControlJointName) {
+  switch (jointName) {
     case "leftElbow":
       return "왼팔꿈치 이동";
     case "rightElbow":
@@ -244,15 +244,15 @@ function scalePoseAroundCenter(
   scaleRatio: number,
 ): SkeletonPose {
   const center = getSkeletonCenter(pose);
-  const joints = Object.entries(pose.joints).reduce<SkeletonLandmarkMap>(
-    (scaledJoints, [jointId, point]) => ({
+  const joints = Object.entries(pose.joints).reduce<SkeletonPointMap>(
+    (scaledJoints, [jointName, point]) => ({
       ...scaledJoints,
-      [jointId]: {
+      [jointName]: {
         x: center.x + (point.x - center.x) * scaleRatio,
         y: center.y + (point.y - center.y) * scaleRatio,
       },
     }),
-    {} as SkeletonLandmarkMap,
+    {} as SkeletonPointMap,
   );
 
   return { joints };
@@ -448,30 +448,30 @@ export const SkeletonPoseOverlay = forwardRef<
     setActiveControlId(getDragTargetKey(target));
   }
 
-  function beginEndpointDrag(endpointId: SkeletonEndpointName) {
+  function beginEndpointDrag(endpointName: SkeletonEndpointName) {
     activeDragModeRef.current = null;
     activeStraightCoreDragStateRef.current =
       createSkeletonStraightCoreDragState(
         poseRef.current,
-        endpointId,
+        endpointName,
         bodyModelRef.current,
       );
     dragStartPointRef.current = getEndpointPosition(
       poseRef.current,
-      endpointId,
+      endpointName,
     );
     dragStartPoseRef.current = poseRef.current;
     dragStartSnapshotRef.current = getCurrentSnapshot();
-    setActiveDragTarget({ kind: "endpoint", id: endpointId });
+    setActiveDragTarget({ kind: "endpoint", id: endpointName });
   }
 
-  function beginJointDrag(jointId: SkeletonControlJointName) {
+  function beginJointDrag(jointName: SkeletonControlJointName) {
     activeDragModeRef.current = null;
     activeStraightCoreDragStateRef.current = null;
-    dragStartPointRef.current = poseRef.current.joints[jointId];
+    dragStartPointRef.current = poseRef.current.joints[jointName];
     dragStartPoseRef.current = poseRef.current;
     dragStartSnapshotRef.current = getCurrentSnapshot();
-    setActiveDragTarget({ kind: "joint", id: jointId });
+    setActiveDragTarget({ kind: "joint", id: jointName });
   }
 
   function beginHeadDrag() {
@@ -526,11 +526,11 @@ export const SkeletonPoseOverlay = forwardRef<
       scoreMultiplier: number;
       target: SkeletonDragTarget;
     }> = [
-      ...CONTROL_JOINTS.map((jointId) => ({
-        center: poseRef.current.joints[jointId],
+      ...CONTROL_JOINTS.map((jointName) => ({
+        center: poseRef.current.joints[jointName],
         maxDistance: metrics.jointHitSize / 2,
         scoreMultiplier: JOINT_PRIORITY_BONUS,
-        target: { kind: "joint", id: jointId } as SkeletonDragTarget,
+        target: { kind: "joint", id: jointName } as SkeletonDragTarget,
       })),
       {
         center: poseRef.current.joints.head,
@@ -538,11 +538,11 @@ export const SkeletonPoseOverlay = forwardRef<
         scoreMultiplier: HEAD_PRIORITY_BONUS,
         target: { kind: "head" },
       },
-      ...ENDPOINTS.map((endpointId) => ({
-        center: getEndpointPosition(poseRef.current, endpointId),
+      ...ENDPOINTS.map((endpointName) => ({
+        center: getEndpointPosition(poseRef.current, endpointName),
         maxDistance: metrics.endpointHitSize / 2,
         scoreMultiplier: ENDPOINT_PRIORITY_BONUS,
-        target: { kind: "endpoint", id: endpointId } as SkeletonDragTarget,
+        target: { kind: "endpoint", id: endpointName } as SkeletonDragTarget,
       })),
       {
         center: getSkeletonCenter(poseRef.current),
@@ -699,7 +699,7 @@ export const SkeletonPoseOverlay = forwardRef<
               const resolution = resolveSkeletonPoseDragWithMode(
                 dragStartPose,
                 {
-                  endpointId: dragTarget.id,
+                  endpointName: dragTarget.id,
                   target,
                   previousMode: activeDragModeRef.current,
                   straightCoreDragAllowed:
@@ -723,7 +723,7 @@ export const SkeletonPoseOverlay = forwardRef<
                 const resolution = resolveSkeletonJointDragWithMode(
                   dragStartPose,
                   {
-                    jointId: dragTarget.id,
+                    jointName: dragTarget.id,
                     target,
                     previousMode: activeDragModeRef.current,
                   },
@@ -809,10 +809,10 @@ export const SkeletonPoseOverlay = forwardRef<
   const endpointResponders = useMemo(
     () =>
       ENDPOINTS.reduce(
-        (responders, endpointId) => {
-          const hitFrameKey = `endpoint:${endpointId}`;
+        (responders, endpointName) => {
+          const hitFrameKey = `endpoint:${endpointName}`;
 
-          responders[endpointId] = PanResponder.create({
+          responders[endpointName] = PanResponder.create({
             onStartShouldSetPanResponder: () => true,
             onMoveShouldSetPanResponder: () => true,
             onPanResponderGrant: (event) => {
@@ -835,10 +835,10 @@ export const SkeletonPoseOverlay = forwardRef<
   const jointResponders = useMemo(
     () =>
       CONTROL_JOINTS.reduce(
-        (responders, jointId) => {
-          const hitFrameKey = `joint:${jointId}`;
+        (responders, jointName) => {
+          const hitFrameKey = `joint:${jointName}`;
 
-          responders[jointId] = PanResponder.create({
+          responders[jointName] = PanResponder.create({
             onStartShouldSetPanResponder: () => true,
             onMoveShouldSetPanResponder: () => true,
             onPanResponderGrant: (event) => {
@@ -970,13 +970,13 @@ export const SkeletonPoseOverlay = forwardRef<
             strokeWidth={2.4}
           />
 
-          {CONTROL_JOINTS.map((jointId) => {
-            const point = pose.joints[jointId];
-            const isActive = jointId === activeControlId;
+          {CONTROL_JOINTS.map((jointName) => {
+            const point = pose.joints[jointName];
+            const isActive = jointName === activeControlId;
 
             return (
               <Circle
-                key={jointId}
+                key={jointName}
                 cx={point.x}
                 cy={point.y}
                 fill={isActive ? "#ffb37a" : "rgba(255,255,255,0.74)"}
@@ -988,13 +988,13 @@ export const SkeletonPoseOverlay = forwardRef<
             );
           })}
 
-          {ENDPOINTS.map((endpointId) => {
-            const point = pose.joints[endpointId];
-            const isActive = endpointId === activeControlId;
+          {ENDPOINTS.map((endpointName) => {
+            const point = pose.joints[endpointName];
+            const isActive = endpointName === activeControlId;
 
             return (
               <Circle
-                key={endpointId}
+                key={endpointName}
                 cx={point.x}
                 cy={point.y}
                 fill={isActive ? "#ffb37a" : "rgba(255,255,255,0.88)"}
@@ -1062,9 +1062,9 @@ export const SkeletonPoseOverlay = forwardRef<
         ]}
       />
 
-      {ENDPOINTS.map((endpointId) => {
-        const point = pose.joints[endpointId];
-        const hitFrameKey = `endpoint:${endpointId}`;
+      {ENDPOINTS.map((endpointName) => {
+        const point = pose.joints[endpointName];
+        const hitFrameKey = `endpoint:${endpointName}`;
         const frame = {
           left: point.x - metrics.endpointHitSize / 2,
           top: point.y - metrics.endpointHitSize / 2,
@@ -1074,9 +1074,9 @@ export const SkeletonPoseOverlay = forwardRef<
 
         return (
           <View
-            key={endpointId}
-            {...endpointResponders[endpointId].panHandlers}
-            accessibilityLabel={getEndpointAccessibilityLabel(endpointId)}
+            key={endpointName}
+            {...endpointResponders[endpointName].panHandlers}
+            accessibilityLabel={getEndpointAccessibilityLabel(endpointName)}
             accessibilityHint="끌어서 손이나 발 위치를 조정합니다."
             style={[
               styles.handleHitArea,
@@ -1091,9 +1091,9 @@ export const SkeletonPoseOverlay = forwardRef<
         );
       })}
 
-      {CONTROL_JOINTS.map((jointId) => {
-        const point = pose.joints[jointId];
-        const hitFrameKey = `joint:${jointId}`;
+      {CONTROL_JOINTS.map((jointName) => {
+        const point = pose.joints[jointName];
+        const hitFrameKey = `joint:${jointName}`;
         const frame = {
           left: point.x - metrics.jointHitSize / 2,
           top: point.y - metrics.jointHitSize / 2,
@@ -1103,9 +1103,9 @@ export const SkeletonPoseOverlay = forwardRef<
 
         return (
           <View
-            key={jointId}
-            {...jointResponders[jointId].panHandlers}
-            accessibilityLabel={getJointAccessibilityLabel(jointId)}
+            key={jointName}
+            {...jointResponders[jointName].panHandlers}
+            accessibilityLabel={getJointAccessibilityLabel(jointName)}
             accessibilityHint="끌어서 팔꿈치나 무릎 방향을 조정합니다."
             style={[
               styles.jointHitArea,

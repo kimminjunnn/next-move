@@ -44,19 +44,21 @@ test("limits every skeleton joint to the requested per-frame movement", () => {
   };
   const targetPose = {
     joints: Object.fromEntries(
-      Object.entries(currentPose.joints).map(([jointId, point]) => [
-        jointId,
+      Object.entries(currentPose.joints).map(([jointName, point]) => [
+        jointName,
         { x: point.x + 100, y: point.y - 100 },
       ]),
     ),
   };
   const limitedPose = limitSkeletonPoseStep(currentPose, targetPose, 12);
 
-  Object.keys(currentPose.joints).forEach((jointId) => {
+  Object.keys(currentPose.joints).forEach((jointName) => {
     assert.ok(
-      distance(currentPose.joints[jointId], limitedPose.joints[jointId]) <=
-        12.001,
-      `${jointId} should not jump farther than the frame limit`,
+      distance(
+        currentPose.joints[jointName],
+        limitedPose.joints[jointName],
+      ) <= 12.001,
+      `${jointName} should not jump farther than the frame limit`,
     );
   });
   assert.deepEqual(
@@ -108,8 +110,8 @@ test("translates the whole skeleton when body dragging in calibration mode", () 
     "calibrating",
   );
 
-  Object.entries(pose.joints).forEach(([jointId, point]) => {
-    assert.deepEqual(nextPose.joints[jointId], {
+  Object.entries(pose.joints).forEach(([jointName, point]) => {
+    assert.deepEqual(nextPose.joints[jointName], {
       x: point.x + delta.x,
       y: point.y + delta.y,
     });
@@ -282,11 +284,14 @@ test("keeps model-aware frame limiting within the requested per-frame movement",
     model,
   );
 
-  Object.keys(currentPose.joints).forEach((jointId) => {
+  Object.keys(currentPose.joints).forEach((jointName) => {
     assert.ok(
-      distance(currentPose.joints[jointId], limitedPose.joints[jointId]) <=
+      distance(
+        currentPose.joints[jointName],
+        limitedPose.joints[jointName],
+      ) <=
         maxJointDistance + 0.001,
-      `${jointId} should not jump farther than the model-aware frame limit`,
+      `${jointName} should not jump farther than the model-aware frame limit`,
     );
   });
 });
@@ -331,7 +336,7 @@ test("keeps the foot close to its prior position when a knee is dragged into a d
   const nextPose = resolveSkeletonJointDrag(
     pose,
     {
-      jointId: "rightKnee",
+      jointName: "rightKnee",
       target: { x: 80, y: 156.57 },
     },
     model,
@@ -394,7 +399,7 @@ test("treats a knee drag parallel to the thigh like a core drag", () => {
   const nextPose = resolveSkeletonJointDrag(
     pose,
     {
-      jointId: "rightKnee",
+      jointName: "rightKnee",
       target: {
         x: pose.joints.rightKnee.x + delta.x,
         y: pose.joints.rightKnee.y + delta.y,
@@ -469,7 +474,7 @@ test("treats an elbow drag parallel to the upper arm like a core drag", () => {
   const nextPose = resolveSkeletonJointDrag(
     pose,
     {
-      jointId: "rightElbow",
+      jointName: "rightElbow",
       target: {
         x: pose.joints.rightElbow.x + delta.x,
         y: pose.joints.rightElbow.y + delta.y,
@@ -544,7 +549,7 @@ test("treats a hand push toward the body along a straight arm like a core drag",
   const nextPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "rightHand",
+      endpointName: "rightHand",
       target: {
         x: pose.joints.rightHand.x + delta.x,
         y: pose.joints.rightHand.y + delta.y,
@@ -605,7 +610,7 @@ test("does not core-drag when a straight arm hand is pulled away from the body",
   const nextPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "rightHand",
+      endpointName: "rightHand",
       target: {
         x: pose.joints.rightHand.x + 4,
         y: pose.joints.rightHand.y + 7,
@@ -671,7 +676,7 @@ test("continues as a core drag after a bent arm becomes straight during a hand d
   const nextPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "rightHand",
+      endpointName: "rightHand",
       target: {
         x: straightHand.x + delta.x,
         y: straightHand.y + delta.y,
@@ -739,7 +744,7 @@ test("treats a foot push toward the body along a straight leg like a core drag",
   const nextPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "rightFoot",
+      endpointName: "rightFoot",
       target: {
         x: pose.joints.rightFoot.x + delta.x,
         y: pose.joints.rightFoot.y + delta.y,
@@ -806,7 +811,7 @@ test("does not core-drag when a straight leg foot is pulled away from the body",
   const nextPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "rightFoot",
+      endpointName: "rightFoot",
       target: {
         x: pose.joints.rightFoot.x + 2,
         y: pose.joints.rightFoot.y + 10,
@@ -872,7 +877,7 @@ test("continues as a core drag after a bent leg becomes straight during a foot d
   const nextPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "rightFoot",
+      endpointName: "rightFoot",
       target: {
         x: straightFoot.x + delta.x,
         y: straightFoot.y + delta.y,
@@ -962,7 +967,7 @@ test("waits for a deliberate push after a bent leg reaches straight before core 
   const nearStraightPose = resolveSkeletonPoseDragWithMode(
     pose,
     {
-      endpointId: "rightFoot",
+      endpointName: "rightFoot",
       target: nearStraightTarget,
       straightCoreDragAllowed: nearStraightState.canUseCoreDrag,
     },
@@ -971,7 +976,7 @@ test("waits for a deliberate push after a bent leg reaches straight before core 
   const pushedPose = resolveSkeletonPoseDragWithMode(
     pose,
     {
-      endpointId: "rightFoot",
+      endpointName: "rightFoot",
       target: deliberatePushTarget,
       straightCoreDragAllowed: deliberatePushState.canUseCoreDrag,
     },
@@ -1029,7 +1034,7 @@ test("keeps a drop-knee bend when the foot is dragged afterward", () => {
   const dropKneePose = resolveSkeletonJointDrag(
     pose,
     {
-      jointId: "rightKnee",
+      jointName: "rightKnee",
       target: { x: 80, y: 156.57 },
     },
     model,
@@ -1037,7 +1042,7 @@ test("keeps a drop-knee bend when the foot is dragged afterward", () => {
   const nextPose = resolveSkeletonPoseDrag(
     dropKneePose,
     {
-      endpointId: "rightFoot",
+      endpointName: "rightFoot",
       target: {
         x: dropKneePose.joints.rightFoot.x + 6,
         y: dropKneePose.joints.rightFoot.y + 2,
@@ -1094,7 +1099,7 @@ test("keeps a drop-knee bend when another handler is dragged afterward", () => {
   const dropKneePose = resolveSkeletonJointDrag(
     pose,
     {
-      jointId: "rightKnee",
+      jointName: "rightKnee",
       target: { x: 80, y: 156.57 },
     },
     model,
@@ -1102,7 +1107,7 @@ test("keeps a drop-knee bend when another handler is dragged afterward", () => {
   const nextPose = resolveSkeletonPoseDrag(
     dropKneePose,
     {
-      endpointId: "rightHand",
+      endpointName: "rightHand",
       target: {
         x: dropKneePose.joints.rightHand.x + 8,
         y: dropKneePose.joints.rightHand.y - 4,
@@ -1228,7 +1233,7 @@ test("lets the shoulder follow a near-full hand reach without moving the torso",
   const nextPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "rightHand",
+      endpointName: "rightHand",
       target: { x: 190, y: 40 },
     },
     model,
@@ -1327,7 +1332,7 @@ test("lets a far hand reach straighten fully without stretching either arm bone"
   const nextPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "rightHand",
+      endpointName: "rightHand",
       target: { x: 220, y: 24 },
     },
     model,
@@ -1401,7 +1406,7 @@ test("leans the body into a far hand reach while keeping the opposite foot ancho
   const nextPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "leftHand",
+      endpointName: "leftHand",
       target,
     },
     model,
@@ -1475,7 +1480,7 @@ test("rises through bent legs when a hand is pulled upward", () => {
   const nextPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "rightHand",
+      endpointName: "rightHand",
       target: { x: 150, y: -60 },
     },
     model,
@@ -1562,7 +1567,7 @@ test("rises through the available planted foot when the other leg is already ext
   const nextPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "leftHand",
+      endpointName: "leftHand",
       target: { x: 64, y: -60 },
     },
     model,
@@ -1627,7 +1632,7 @@ test("rises through the available planted foot when a hand is pulled diagonally 
   const nextPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "leftHand",
+      endpointName: "leftHand",
       target: { x: -35, y: -20 },
     },
     model,
@@ -1688,7 +1693,7 @@ test("prefers the same-side planted foot when a hand pull rises from a lunge sta
   const nextPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "leftHand",
+      endpointName: "leftHand",
       target: { x: -35, y: -45 },
     },
     model,
@@ -1748,7 +1753,7 @@ test("keeps hand lunge core mode through a shallow upward follow frame", () => {
   const autoResolution = resolveSkeletonPoseDragWithMode(
     pose,
     {
-      endpointId: "leftHand",
+      endpointName: "leftHand",
       target: { x: -80, y: -2 },
     },
     model,
@@ -1756,7 +1761,7 @@ test("keeps hand lunge core mode through a shallow upward follow frame", () => {
   const lockedResolution = resolveSkeletonPoseDragWithMode(
     pose,
     {
-      endpointId: "leftHand",
+      endpointName: "leftHand",
       target: { x: -80, y: -2 },
       previousMode: "core",
     },
@@ -1812,7 +1817,7 @@ test("keeps joint core drag mode near the parallel threshold", () => {
     resolveSkeletonJointDragWithMode(
       pose,
       {
-        jointId: "leftElbow",
+        jointName: "leftElbow",
         target,
       },
       model,
@@ -1823,7 +1828,7 @@ test("keeps joint core drag mode near the parallel threshold", () => {
     resolveSkeletonJointDragWithMode(
       pose,
       {
-        jointId: "leftElbow",
+        jointName: "leftElbow",
         target,
         previousMode: "core",
       },
@@ -1872,7 +1877,7 @@ test("does not core-drag a below-horizontal elbow pushed horizontally", () => {
   const resolution = resolveSkeletonJointDragWithMode(
     pose,
     {
-      jointId: "rightElbow",
+      jointName: "rightElbow",
       target: { x: 180, y: 44 },
     },
     model,
@@ -1922,7 +1927,7 @@ test("does not core-drag a below-horizontal straight hand pushed horizontally", 
   const resolution = resolveSkeletonPoseDragWithMode(
     pose,
     {
-      endpointId: "rightHand",
+      endpointName: "rightHand",
       target: { x: 184.82, y: 43.99 },
     },
     model,
@@ -1972,7 +1977,7 @@ test("smoothly ramps body lean near the far hand reach threshold", () => {
   const beforeThresholdPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "leftHand",
+      endpointName: "leftHand",
       target: { x: -15, y: 25 },
     },
     model,
@@ -1980,7 +1985,7 @@ test("smoothly ramps body lean near the far hand reach threshold", () => {
   const afterThresholdPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "leftHand",
+      endpointName: "leftHand",
       target: { x: -35, y: 25 },
     },
     model,
@@ -2037,7 +2042,7 @@ test("keeps repeated hand drag frames stable when they use the same drag start p
     },
   };
   const dragInput = {
-    endpointId: "rightHand",
+    endpointName: "rightHand",
     target: { x: 220, y: 24 },
   };
 
@@ -2104,7 +2109,7 @@ test("extends a reachable foot without rotating or shifting the core", () => {
   const nextPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "rightFoot",
+      endpointName: "rightFoot",
       target: { x: 198, y: 169 },
     },
     model,
@@ -2154,7 +2159,7 @@ test("leans the core toward a far foot drag", () => {
   const nextPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "rightFoot",
+      endpointName: "rightFoot",
       target: { x: 220, y: 224 },
     },
     model,
@@ -2213,7 +2218,7 @@ test("raises the body into an overhead hand reach until both legs extend", () =>
   const nextPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "rightHand",
+      endpointName: "rightHand",
       target: { x: 150, y: -80 },
     },
     model,
@@ -2313,7 +2318,7 @@ test("keeps the pelvis quiet when a hand is pulled diagonally", () => {
   const nextPose = resolveSkeletonPoseDrag(
     pose,
     {
-      endpointId: "rightHand",
+      endpointName: "rightHand",
       target: { x: 210, y: 85 },
     },
     model,

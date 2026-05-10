@@ -107,7 +107,7 @@ The route detection pipeline is sensitive to photo scale, wall color, lighting, 
 ## Style
 
 - TypeScript is strict. Prefer typed request/response boundaries over `any`.
-- Prefer names that describe the user's mental model over implementation jargon. Use `Point2D` for generic `{ x, y }` coordinates, `SkeletonEndpointName` for hand/foot endpoint names, `SkeletonControlJointName` for elbow/knee control names, and `SkeletonLandmarkName`/`SkeletonLandmarkMap` for the full set of skeleton points.
+- Prefer names that describe the user's mental model over implementation jargon. Use `Point2D` for generic `{ x, y }` coordinates, `SkeletonEndpointName` for hand/foot endpoint names, `SkeletonControlJointName` for elbow/knee control names, and `SkeletonPointName`/`SkeletonPointMap` for the full set of skeleton points.
 - React Native UI should be dense enough for repeated use, avoid oversized marketing-style layouts, and keep controls reachable on mobile.
 - Python service code should keep image loading, detection, route selection, and debug artifact writing in separate modules.
 - Comments should explain non-obvious heuristics or contracts, not restate code.
