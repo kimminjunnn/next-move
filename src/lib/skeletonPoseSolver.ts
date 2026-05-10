@@ -45,11 +45,13 @@ const LEG_CORE_RESPONSE_FULL_REACH_RATIO = 1.34;
 const LEG_CORE_RESPONSE_START_REACH_RATIO = 1;
 const HEAD_SPINE_ROTATION_MAX_RADIANS = 0.12;
 const HEAD_SPINE_FOLLOW_RATIO = 0.42;
+const HEAD_DIRECTION_MAX_RADIANS = 1.15;
 const ROOT_LIMB_CORE_ENTER_PARALLEL_RATIO = 0.22;
 const ROOT_LIMB_CORE_RELEASE_PARALLEL_RATIO = 0.34;
 const ARM_BELOW_HORIZONTAL_CORE_BLOCK_RATIO = 0.02;
 const HORIZONTAL_ARM_DRAG_RATIO = 0.82;
 const MIN_SOLVE_DISTANCE = 0.001;
+const OPPOSITE_DIRECTION_EPSILON = 0.000001;
 const SKELETON_POINT_NAMES = [
   "head",
   "neck",
@@ -409,6 +411,43 @@ function rotatePointAround(
     x: center.x + translated.x * cos - translated.y * sin,
     y: center.y + translated.x * sin + translated.y * cos,
   };
+}
+
+function rotateVector(vector: Point2D, angle: number): Point2D {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+
+  return {
+    x: vector.x * cos - vector.y * sin,
+    y: vector.x * sin + vector.y * cos,
+  };
+}
+
+function clampDirectionAround(
+  direction: Point2D,
+  centerDirection: Point2D,
+  maxAngleRadians: number,
+  preferredSide: -1 | 0 | 1 = 0,
+) {
+  const rawAngle = angleBetweenVectors(centerDirection, direction);
+  const angle =
+    Math.abs(Math.abs(rawAngle) - Math.PI) <= OPPOSITE_DIRECTION_EPSILON
+      ? maxAngleRadians * preferredSide
+      : clampNumber(rawAngle, -maxAngleRadians, maxAngleRadians);
+
+  return rotateVector(centerDirection, angle);
+}
+
+function getDirectionSide(direction: Point2D): -1 | 0 | 1 {
+  if (direction.x > MIN_SOLVE_DISTANCE) {
+    return 1;
+  }
+
+  if (direction.x < -MIN_SOLVE_DISTANCE) {
+    return -1;
+  }
+
+  return 0;
 }
 
 function rotateCore(
@@ -1089,16 +1128,29 @@ export function resolveSkeletonHeadDrag(
     subtract(input.target, pose.joints.pelvis),
     -1,
   );
-  const spineRotation = clampNumber(
-    angleBetweenVectors(spineDirection, targetSpineDirection) *
-      HEAD_SPINE_FOLLOW_RATIO,
-    -HEAD_SPINE_ROTATION_MAX_RADIANS,
-    HEAD_SPINE_ROTATION_MAX_RADIANS,
-  );
+  const rawSpineAngle = angleBetweenVectors(spineDirection, targetSpineDirection);
+  const spineRotation =
+    Math.abs(Math.abs(rawSpineAngle) - Math.PI) <= OPPOSITE_DIRECTION_EPSILON
+      ? 0
+      : clampNumber(
+          rawSpineAngle * HEAD_SPINE_FOLLOW_RATIO,
+          -HEAD_SPINE_ROTATION_MAX_RADIANS,
+          HEAD_SPINE_ROTATION_MAX_RADIANS,
+        );
   const shiftedJoints = rotateUpperCore(pose.joints, spineRotation);
-  const headDirection = normalizeOrFallback(
+  const rawHeadDirection = normalizeOrFallback(
     subtract(input.target, shiftedJoints.neck),
     currentHeadDirection.x >= 0 ? 1 : -1,
+  );
+  const shiftedSpineDirection = normalizeOrFallback(
+    subtract(shiftedJoints.neck, shiftedJoints.pelvis),
+    -1,
+  );
+  const headDirection = clampDirectionAround(
+    rawHeadDirection,
+    shiftedSpineDirection,
+    HEAD_DIRECTION_MAX_RADIANS,
+    getDirectionSide(currentHeadDirection),
   );
   const nextJoints: SkeletonPointMap = {
     ...shiftedJoints,

@@ -2417,3 +2417,67 @@ test("rotates the head with the neck and sternum without stretching the spine", 
   );
   assert.deepEqual(nextPose.joints.pelvis, pose.joints.pelvis);
 });
+
+test("prevents head dragging into an upside-down lower hemisphere", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 135, y: 155 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 138, y: 205 },
+    },
+  };
+
+  const nextPose = resolveSkeletonHeadDrag(
+    pose,
+    {
+      target: { x: 100, y: 120 },
+    },
+    model,
+  );
+
+  assert.ok(
+    nextPose.joints.head.y < nextPose.joints.neck.y,
+    "head should stay above the neck even when dragged downward",
+  );
+  assert.ok(
+    Math.abs(nextPose.joints.head.x - nextPose.joints.neck.x) < 0.001,
+    "straight downward head drags should not snap the head sideways",
+  );
+  assert.ok(
+    Math.abs(nextPose.joints.neck.x - pose.joints.neck.x) < 0.001,
+    "straight downward head drags should not snap the upper spine sideways",
+  );
+  assert.ok(
+    distance(nextPose.joints.head, nextPose.joints.neck) -
+      model.headRadius * 1.55 <
+      0.001,
+    "head should keep its natural neck distance while clamped",
+  );
+});
