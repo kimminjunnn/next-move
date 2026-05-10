@@ -13,8 +13,6 @@ const {
   resolveSkeletonBodyDrag,
   limitSkeletonPoseStep,
   limitSkeletonPoseStepWithModel,
-  createSkeletonStraightCoreDragState,
-  updateSkeletonStraightCoreDragState,
 } = require("./skeletonPoseSolver.ts");
 
 function distance(a, b) {
@@ -502,7 +500,7 @@ test("treats an elbow drag parallel to the upper arm like a core drag", () => {
   );
 });
 
-test("treats a hand push toward the body along a straight arm like a core drag", () => {
+test("keeps the core fixed when a straight hand is pushed toward the body", () => {
   const model = {
     height: 170,
     wingspan: 170,
@@ -538,36 +536,27 @@ test("treats a hand push toward the body along a straight arm like a core drag",
     },
   };
   const delta = { x: -4, y: -7 };
-  const expectedPose = resolveSkeletonCoreDrag(
-    pose,
-    {
-      delta,
-    },
-    model,
-  );
+  const target = {
+    x: pose.joints.rightHand.x + delta.x,
+    y: pose.joints.rightHand.y + delta.y,
+  };
 
-  const nextPose = resolveSkeletonPoseDrag(
+  const resolution = resolveSkeletonPoseDragWithMode(
     pose,
     {
       endpointName: "rightHand",
-      target: {
-        x: pose.joints.rightHand.x + delta.x,
-        y: pose.joints.rightHand.y + delta.y,
-      },
+      target,
     },
     model,
   );
+  const nextPose = resolution.pose;
 
-  assert.deepEqual(nextPose.joints.torso, expectedPose.joints.torso);
-  assert.deepEqual(nextPose.joints.pelvis, expectedPose.joints.pelvis);
-  assert.deepEqual(nextPose.joints.rightShoulder, expectedPose.joints.rightShoulder);
+  assert.equal(resolution.mode, "pose");
+  assert.deepEqual(nextPose.joints.torso, pose.joints.torso);
+  assert.deepEqual(nextPose.joints.pelvis, pose.joints.pelvis);
   assert.ok(
-    distance(nextPose.joints.rightHand, expectedPose.joints.rightHand) < 0.001,
-    "parallel straight-arm hand drag should keep the same hand anchoring as a core drag",
-  );
-  assert.ok(
-    distance(nextPose.joints.rightElbow, expectedPose.joints.rightElbow) < 0.001,
-    "parallel straight-arm hand drag should resolve the elbow exactly like a core drag",
+    distance(nextPose.joints.rightHand, target) < 0.001,
+    "parallel straight-arm hand drag should place the endpoint instead of moving the core",
   );
 });
 
@@ -628,7 +617,7 @@ test("does not core-drag when a straight arm hand is pulled away from the body",
   );
 });
 
-test("continues as a core drag after a bent arm becomes straight during a hand drag", () => {
+test("keeps endpoint hand drag in pose mode after a bent arm becomes straight", () => {
   const model = {
     height: 170,
     wingspan: 170,
@@ -665,39 +654,31 @@ test("continues as a core drag after a bent arm becomes straight during a hand d
   };
   const straightHand = { x: 165, y: 100 };
   const delta = { x: -6, y: -8 };
-  const expectedPose = resolveSkeletonCoreDrag(
-    pose,
-    {
-      delta,
-    },
-    model,
-  );
+  const target = {
+    x: straightHand.x + delta.x,
+    y: straightHand.y + delta.y,
+  };
 
-  const nextPose = resolveSkeletonPoseDrag(
+  const resolution = resolveSkeletonPoseDragWithMode(
     pose,
     {
       endpointName: "rightHand",
-      target: {
-        x: straightHand.x + delta.x,
-        y: straightHand.y + delta.y,
-      },
+      target,
     },
     model,
   );
+  const nextPose = resolution.pose;
 
-  assert.deepEqual(nextPose.joints.torso, expectedPose.joints.torso);
-  assert.deepEqual(nextPose.joints.pelvis, expectedPose.joints.pelvis);
+  assert.equal(resolution.mode, "pose");
+  assert.deepEqual(nextPose.joints.torso, pose.joints.torso);
+  assert.deepEqual(nextPose.joints.pelvis, pose.joints.pelvis);
   assert.ok(
-    distance(nextPose.joints.rightHand, expectedPose.joints.rightHand) < 0.001,
-    "hand drag should use only the movement after straightening as the core drag delta",
-  );
-  assert.ok(
-    distance(nextPose.joints.rightElbow, expectedPose.joints.rightElbow) < 0.001,
-    "hand drag after straightening should preserve the core-drag arm solve",
+    distance(nextPose.joints.rightHand, target) < 0.001,
+    "hand endpoint drag should keep placing the hand after straightening",
   );
 });
 
-test("treats a foot push toward the body along a straight leg like a core drag", () => {
+test("keeps the core fixed when a straight foot is pushed toward the body", () => {
   const model = {
     height: 170,
     wingspan: 170,
@@ -733,42 +714,28 @@ test("treats a foot push toward the body along a straight leg like a core drag",
     },
   };
   const delta = { x: -2, y: -10 };
-  const expectedPose = resolveSkeletonCoreDrag(
-    pose,
-    {
-      delta,
-    },
-    model,
-  );
+  const target = {
+    x: pose.joints.rightFoot.x + delta.x,
+    y: pose.joints.rightFoot.y + delta.y,
+  };
 
-  const nextPose = resolveSkeletonPoseDrag(
+  const resolution = resolveSkeletonPoseDragWithMode(
     pose,
     {
       endpointName: "rightFoot",
-      target: {
-        x: pose.joints.rightFoot.x + delta.x,
-        y: pose.joints.rightFoot.y + delta.y,
-      },
+      target,
     },
     model,
   );
+  const nextPose = resolution.pose;
 
+  assert.equal(resolution.mode, "pose");
+  assert.deepEqual(nextPose.joints.torso, pose.joints.torso);
+  assert.deepEqual(nextPose.joints.pelvis, pose.joints.pelvis);
+  assert.deepEqual(nextPose.joints.rightHip, pose.joints.rightHip);
   assert.ok(
-    distance(nextPose.joints.torso, expectedPose.joints.torso) < 0.1,
-    "foot drag after straightening should move the torso like a core drag",
-  );
-  assert.ok(
-    distance(nextPose.joints.pelvis, expectedPose.joints.pelvis) < 0.1,
-    "foot drag after straightening should move the pelvis like a core drag",
-  );
-  assert.deepEqual(nextPose.joints.rightHip, expectedPose.joints.rightHip);
-  assert.ok(
-    distance(nextPose.joints.rightFoot, expectedPose.joints.rightFoot) < 0.001,
-    "parallel straight-leg foot push should keep the same foot anchoring as a core drag",
-  );
-  assert.ok(
-    distance(nextPose.joints.rightKnee, expectedPose.joints.rightKnee) < 0.001,
-    "parallel straight-leg foot push should resolve the knee exactly like a core drag",
+    distance(nextPose.joints.rightFoot, target) < 0.001,
+    "parallel straight-leg foot drag should place the endpoint instead of moving the core",
   );
 });
 
@@ -829,7 +796,61 @@ test("does not core-drag when a straight leg foot is pulled away from the body",
   );
 });
 
-test("continues as a core drag after a bent leg becomes straight during a foot drag", () => {
+test("does not re-trigger straight foot core drag near the hip after core mode", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+  const pose = {
+    joints: {
+      head: { x: 100, y: 20 },
+      neck: { x: 100, y: 35 },
+      torso: { x: 100, y: 55 },
+      pelvis: { x: 100, y: 85 },
+      leftShoulder: { x: 80, y: 40 },
+      rightShoulder: { x: 120, y: 40 },
+      leftElbow: { x: 60, y: 75 },
+      rightElbow: { x: 140, y: 75 },
+      leftHand: { x: 55, y: 110 },
+      rightHand: { x: 145, y: 110 },
+      leftHip: { x: 85, y: 100 },
+      rightHip: { x: 115, y: 100 },
+      leftKnee: { x: 65, y: 155 },
+      rightKnee: { x: 127, y: 159 },
+      leftFoot: { x: 62, y: 205 },
+      rightFoot: { x: 137, y: 208 },
+    },
+  };
+  const foldedTarget = { x: 118, y: 112 };
+  const resolution = resolveSkeletonPoseDragWithMode(
+    pose,
+    {
+      endpointName: "rightFoot",
+      target: foldedTarget,
+      previousMode: "core",
+    },
+    model,
+  );
+
+  assert.equal(resolution.mode, "pose");
+  assert.deepEqual(resolution.pose.joints.pelvis, pose.joints.pelvis);
+  assert.ok(
+    distance(resolution.pose.joints.rightFoot, foldedTarget) < 0.001,
+    "folding a straight leg back near the hip should resolve the foot target instead of moving the core",
+  );
+});
+
+test("keeps endpoint foot drag in pose mode after a bent leg becomes straight", () => {
   const model = {
     height: 170,
     wingspan: 170,
@@ -866,45 +887,31 @@ test("continues as a core drag after a bent leg becomes straight during a foot d
   };
   const straightFoot = { x: 137, y: 207.78 };
   const delta = { x: -2, y: -10 };
-  const expectedPose = resolveSkeletonCoreDrag(
-    pose,
-    {
-      delta,
-    },
-    model,
-  );
+  const target = {
+    x: straightFoot.x + delta.x,
+    y: straightFoot.y + delta.y,
+  };
 
-  const nextPose = resolveSkeletonPoseDrag(
+  const resolution = resolveSkeletonPoseDragWithMode(
     pose,
     {
       endpointName: "rightFoot",
-      target: {
-        x: straightFoot.x + delta.x,
-        y: straightFoot.y + delta.y,
-      },
+      target,
     },
     model,
   );
+  const nextPose = resolution.pose;
 
+  assert.equal(resolution.mode, "pose");
+  assert.deepEqual(nextPose.joints.torso, pose.joints.torso);
+  assert.deepEqual(nextPose.joints.pelvis, pose.joints.pelvis);
   assert.ok(
-    distance(nextPose.joints.torso, expectedPose.joints.torso) < 0.1,
-    "foot drag after straightening should move the torso like a core drag",
-  );
-  assert.ok(
-    distance(nextPose.joints.pelvis, expectedPose.joints.pelvis) < 0.1,
-    "foot drag after straightening should move the pelvis like a core drag",
-  );
-  assert.ok(
-    distance(nextPose.joints.rightFoot, expectedPose.joints.rightFoot) < 0.001,
-    "foot drag should use only the movement after straightening as the core drag delta",
-  );
-  assert.ok(
-    distance(nextPose.joints.rightKnee, expectedPose.joints.rightKnee) < 0.1,
-    "foot drag after straightening should preserve the core-drag leg solve",
+    distance(nextPose.joints.rightFoot, target) < 0.001,
+    "foot endpoint drag should keep placing the foot after straightening",
   );
 });
 
-test("waits for a deliberate push after a bent leg reaches straight before core dragging", () => {
+test("keeps foot endpoint drag in pose mode after a deliberate straight-leg push", () => {
   const model = {
     height: 170,
     wingspan: 170,
@@ -945,31 +952,11 @@ test("waits for a deliberate push after a bent leg reaches straight before core 
     x: straightFoot.x - 2.4,
     y: straightFoot.y - 12,
   };
-  const startState = createSkeletonStraightCoreDragState(
-    pose,
-    "rightFoot",
-    model,
-  );
-  const nearStraightState = updateSkeletonStraightCoreDragState(
-    pose,
-    "rightFoot",
-    nearStraightTarget,
-    model,
-    startState,
-  );
-  const deliberatePushState = updateSkeletonStraightCoreDragState(
-    pose,
-    "rightFoot",
-    deliberatePushTarget,
-    model,
-    nearStraightState,
-  );
   const nearStraightPose = resolveSkeletonPoseDragWithMode(
     pose,
     {
       endpointName: "rightFoot",
       target: nearStraightTarget,
-      straightCoreDragAllowed: nearStraightState.canUseCoreDrag,
     },
     model,
   );
@@ -978,22 +965,14 @@ test("waits for a deliberate push after a bent leg reaches straight before core 
     {
       endpointName: "rightFoot",
       target: deliberatePushTarget,
-      straightCoreDragAllowed: deliberatePushState.canUseCoreDrag,
     },
     model,
   );
 
-  assert.deepEqual(startState, {
-    hasReachedStraight: false,
-    canUseCoreDrag: false,
-  });
-  assert.deepEqual(nearStraightState, {
-    hasReachedStraight: true,
-    canUseCoreDrag: false,
-  });
   assert.equal(nearStraightPose.mode, "pose");
-  assert.equal(deliberatePushState.canUseCoreDrag, true);
-  assert.equal(pushedPose.mode, "core");
+  assert.equal(pushedPose.mode, "pose");
+  assert.deepEqual(pushedPose.pose.joints.torso, pose.joints.torso);
+  assert.deepEqual(pushedPose.pose.joints.pelvis, pose.joints.pelvis);
 });
 
 test("keeps a drop-knee bend when the foot is dragged afterward", () => {

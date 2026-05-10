@@ -58,16 +58,10 @@ export type SkeletonDragResolution = {
   mode: SkeletonDragResolutionMode;
 };
 
-export type SkeletonStraightCoreDragState = {
-  hasReachedStraight: boolean;
-  canUseCoreDrag: boolean;
-};
-
 export type SkeletonDragInput = {
   endpointName: SkeletonEndpointName;
   target: Point2D;
   previousMode?: SkeletonDragResolutionMode | null;
-  straightCoreDragAllowed?: boolean;
 };
 
 export type SkeletonJointDragInput = {

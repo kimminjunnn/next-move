@@ -21,7 +21,6 @@ import {
   DEFAULT_SKELETON_SCALE,
 } from "../lib/bodyModel";
 import {
-  createSkeletonStraightCoreDragState,
   createDefaultSkeletonPose,
   getEndpointPosition,
   getSkeletonCenter,
@@ -31,7 +30,6 @@ import {
   resolveSkeletonJointDragWithMode,
   resolveSkeletonPoseDragWithMode,
   translateSkeletonPose,
-  updateSkeletonStraightCoreDragState,
 } from "../lib/skeletonPoseSolver";
 import {
   createSkeletonPoseHistory,
@@ -55,7 +53,6 @@ import type {
   SkeletonPointMap,
   SkeletonPointName,
   SkeletonPose,
-  SkeletonStraightCoreDragState,
 } from "../types/skeletonPose";
 
 type SkeletonPoseOverlayProps = {
@@ -293,8 +290,6 @@ export const SkeletonPoseOverlay = forwardRef<
   const [activeControlId, setActiveControlId] = useState<string | null>(null);
   const activeDragTargetRef = useRef<SkeletonDragTarget | null>(null);
   const activeDragModeRef = useRef<SkeletonDragResolutionMode | null>(null);
-  const activeStraightCoreDragStateRef =
-    useRef<SkeletonStraightCoreDragState | null>(null);
   const dragStartPointRef = useRef<Point2D | null>(null);
   const dragStartPoseRef = useRef<SkeletonPose | null>(null);
   const dragStartSnapshotRef = useRef<SkeletonPoseSnapshot | null>(null);
@@ -450,12 +445,6 @@ export const SkeletonPoseOverlay = forwardRef<
 
   function beginEndpointDrag(endpointName: SkeletonEndpointName) {
     activeDragModeRef.current = null;
-    activeStraightCoreDragStateRef.current =
-      createSkeletonStraightCoreDragState(
-        poseRef.current,
-        endpointName,
-        bodyModelRef.current,
-      );
     dragStartPointRef.current = getEndpointPosition(
       poseRef.current,
       endpointName,
@@ -467,7 +456,6 @@ export const SkeletonPoseOverlay = forwardRef<
 
   function beginJointDrag(jointName: SkeletonControlJointName) {
     activeDragModeRef.current = null;
-    activeStraightCoreDragStateRef.current = null;
     dragStartPointRef.current = poseRef.current.joints[jointName];
     dragStartPoseRef.current = poseRef.current;
     dragStartSnapshotRef.current = getCurrentSnapshot();
@@ -476,7 +464,6 @@ export const SkeletonPoseOverlay = forwardRef<
 
   function beginHeadDrag() {
     activeDragModeRef.current = null;
-    activeStraightCoreDragStateRef.current = null;
     dragStartPointRef.current = poseRef.current.joints.head;
     dragStartPoseRef.current = poseRef.current;
     dragStartSnapshotRef.current = getCurrentSnapshot();
@@ -485,7 +472,6 @@ export const SkeletonPoseOverlay = forwardRef<
 
   function beginBodyDrag() {
     activeDragModeRef.current = null;
-    activeStraightCoreDragStateRef.current = null;
     dragStartPointRef.current = null;
     dragStartPoseRef.current = poseRef.current;
     dragStartSnapshotRef.current = getCurrentSnapshot();
@@ -678,32 +664,12 @@ export const SkeletonPoseOverlay = forwardRef<
       const nextPose =
         dragTarget.kind === "endpoint"
           ? (() => {
-              const straightCoreDragState =
-                activeStraightCoreDragStateRef.current ??
-                createSkeletonStraightCoreDragState(
-                  dragStartPose,
-                  dragTarget.id,
-                  bodyModelRef.current,
-                );
-              const nextStraightCoreDragState =
-                updateSkeletonStraightCoreDragState(
-                  dragStartPose,
-                  dragTarget.id,
-                  target,
-                  bodyModelRef.current,
-                  straightCoreDragState,
-                );
-
-              activeStraightCoreDragStateRef.current =
-                nextStraightCoreDragState;
               const resolution = resolveSkeletonPoseDragWithMode(
                 dragStartPose,
                 {
                   endpointName: dragTarget.id,
                   target,
                   previousMode: activeDragModeRef.current,
-                  straightCoreDragAllowed:
-                    nextStraightCoreDragState.canUseCoreDrag,
                 },
                 bodyModelRef.current,
               );
@@ -741,7 +707,6 @@ export const SkeletonPoseOverlay = forwardRef<
   function endEndpointDrag() {
     commitPoseHistory(dragStartSnapshotRef.current);
     activeDragModeRef.current = null;
-    activeStraightCoreDragStateRef.current = null;
     dragStartPointRef.current = null;
     dragStartPoseRef.current = null;
     dragStartSnapshotRef.current = null;
@@ -767,7 +732,6 @@ export const SkeletonPoseOverlay = forwardRef<
     dragStartPoseRef.current = null;
     dragStartSnapshotRef.current = getCurrentSnapshot();
     activeDragModeRef.current = null;
-    activeStraightCoreDragStateRef.current = null;
     setActiveDragTarget(null);
   }
 
