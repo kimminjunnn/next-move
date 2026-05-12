@@ -1205,15 +1205,11 @@ export function translateSkeletonPose(
   pose: SkeletonPose,
   delta: Point2D,
 ): SkeletonPose {
-  const translatedJoints = Object.entries(
-    pose.joints,
-  ).reduce<SkeletonPointMap>(
-    (nextJoints, [jointName, point]) => ({
-      ...nextJoints,
-      [jointName]: add(point, delta),
-    }),
-    {} as SkeletonPointMap,
-  );
+  const translatedJoints = {} as SkeletonPointMap;
+
+  SKELETON_POINT_NAMES.forEach((jointName) => {
+    translatedJoints[jointName] = add(pose.joints[jointName], delta);
+  });
 
   return {
     joints: translatedJoints,

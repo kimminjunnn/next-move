@@ -269,7 +269,8 @@ export function SimulationCanvasStage({
     return (
       objects.find(
         (object) =>
-          object.kind === "hold" && isPointInPolygon(sourcePoint, object.contour),
+          object.kind === "hold" &&
+          isPointInPolygon(sourcePoint, object.contour),
       ) ?? null
     );
   }
@@ -349,7 +350,10 @@ export function SimulationCanvasStage({
       viewport.width,
       viewport.height,
     );
-    const holdObject = findContainingHold(analysisPoint, analysisResult.objects);
+    const holdObject = findContainingHold(
+      analysisPoint,
+      analysisResult.objects,
+    );
 
     if (!holdObject) {
       return;
@@ -412,9 +416,7 @@ export function SimulationCanvasStage({
         )
       : null;
   const skeletonInitialCenter =
-    selectedStartHoldViewportCenter &&
-    viewport.width > 0 &&
-    viewport.height > 0
+    selectedStartHoldViewportCenter && viewport.width > 0 && viewport.height > 0
       ? {
           x: Math.min(
             Math.max(selectedStartHoldViewportCenter.x, 36),
@@ -539,7 +541,10 @@ export function SimulationCanvasStage({
 
                     {isAnalyzingHolds || isSelectingRoute ? (
                       <View style={styles.loadingRow}>
-                        <ActivityIndicator color={brand.colors.primary} size="small" />
+                        <ActivityIndicator
+                          color={brand.colors.primary}
+                          size="small"
+                        />
                         <Text style={styles.loadingText}>{loadingText}</Text>
                       </View>
                     ) : null}
@@ -583,12 +588,10 @@ export function SimulationCanvasStage({
               ref={skeletonOverlayRef}
               allowEmptySpacePinchScale
               allowPinchScaleInSimulation
-              characterRenderStyle="stickmanCharacter"
+              characterRenderStyle="stickmanCharacterBlack"
               initialCenter={skeletonInitialCenter}
               mode={
-                flowStep === "sizingSkeleton"
-                  ? "calibrating"
-                  : "simulating"
+                flowStep === "sizingSkeleton" ? "calibrating" : "simulating"
               }
               onHistoryStateChange={setSkeletonHistoryState}
               viewportHeight={viewport.height}
@@ -614,7 +617,10 @@ export function SimulationCanvasStage({
                   인식하지 못한 홀드는 탭해서 루트에 추가하세요.
                 </Text>
 
-                <View pointerEvents="box-none" style={styles.calibrationActionRow}>
+                <View
+                  pointerEvents="box-none"
+                  style={styles.calibrationActionRow}
+                >
                   <Pressable
                     onPress={handleReselectRoute}
                     style={({ pressed }) => [
@@ -635,7 +641,9 @@ export function SimulationCanvasStage({
                       pressed ? styles.calibrationConfirmButtonPressed : null,
                     ]}
                   >
-                    <Text style={styles.calibrationConfirmButtonText}>다음</Text>
+                    <Text style={styles.calibrationConfirmButtonText}>
+                      다음
+                    </Text>
                   </Pressable>
                 </View>
               </View>
@@ -660,7 +668,10 @@ export function SimulationCanvasStage({
                   두 손가락으로 크기를 맞추고, 끌어서 위치를 조정하세요.
                 </Text>
 
-                <View pointerEvents="box-none" style={styles.calibrationActionRow}>
+                <View
+                  pointerEvents="box-none"
+                  style={styles.calibrationActionRow}
+                >
                   <Pressable
                     onPress={() => setFlowStep("routeEditing")}
                     style={({ pressed }) => [
@@ -679,7 +690,9 @@ export function SimulationCanvasStage({
                       pressed ? styles.calibrationConfirmButtonPressed : null,
                     ]}
                   >
-                    <Text style={styles.calibrationConfirmButtonText}>완료</Text>
+                    <Text style={styles.calibrationConfirmButtonText}>
+                      완료
+                    </Text>
                   </Pressable>
                 </View>
               </View>

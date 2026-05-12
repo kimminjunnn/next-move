@@ -623,12 +623,14 @@ export function computeAnchorPartTransform(
   };
 }
 
-export function sortRigPartsByZIndex<T extends { zIndex: number }>(parts: T[]) {
+export function sortRigPartsByZIndex<T extends { zIndex: number }>(
+  parts: ReadonlyArray<T>,
+) {
   return [...parts].sort((first, second) => first.zIndex - second.zIndex);
 }
 
 export function computeCharacterPartTransforms(
-  parts: CharacterRigPart[],
+  parts: ReadonlyArray<CharacterRigPart>,
   pose: SkeletonPose,
   model: SkeletonBodyModel,
   options: CharacterRigTransformOptions = {},

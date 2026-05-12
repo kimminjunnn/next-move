@@ -43,6 +43,10 @@ import {
   getSkeletonOverlayPointerEvents,
   shouldAllowSkeletonPinchScale,
 } from "../lib/skeletonPoseInteraction";
+import {
+  isRasterCharacterRenderStyle,
+  isVectorCharacterRenderStyle,
+} from "../lib/skeletonCharacterRenderStyle";
 import { getSkeletonCharacterOverlayOpacity } from "../lib/skeletonCharacterVisibility";
 import {
   getRupaCharacterTransformOptions,
@@ -318,15 +322,28 @@ export const SkeletonPoseOverlay = forwardRef<
   const [activeControlId, setActiveControlId] = useState<string | null>(null);
   const shouldShowCharacter =
     mode === "simulating" && characterRenderStyle !== "none";
+  const shouldRenderRasterCharacter =
+    isRasterCharacterRenderStyle(characterRenderStyle);
+  const shouldRenderVectorCharacter =
+    isVectorCharacterRenderStyle(characterRenderStyle);
   const characterOpacity = getSkeletonCharacterOverlayOpacity({
     activeControlId,
     characterRenderStyle,
     characterVisible: shouldShowCharacter,
   });
   const characterTransformOptions = useMemo(
-    () => getCharacterTransformOptions(pose, activeControlId),
-    [activeControlId, getCharacterTransformOptions, pose],
+    () =>
+      shouldRenderRasterCharacter
+        ? getCharacterTransformOptions(pose, activeControlId)
+        : undefined,
+    [
+      activeControlId,
+      getCharacterTransformOptions,
+      pose,
+      shouldRenderRasterCharacter,
+    ],
   );
+  const skeletonCenter = useMemo(() => getSkeletonCenter(pose), [pose]);
   const activeDragTargetRef = useRef<SkeletonDragTarget | null>(null);
   const activeDragModeRef = useRef<SkeletonDragResolutionMode | null>(null);
   const dragStartPointRef = useRef<Point2D | null>(null);
@@ -549,9 +566,10 @@ export const SkeletonPoseOverlay = forwardRef<
     });
   }
 
-  function findNearestDragTarget(point: Point2D) {
+  function findNearestDragTarget(point: Point2D): SkeletonDragTarget | null {
     const isCharacterInteraction = modeRef.current === "simulating";
     const currentMetrics = metricsRef.current;
+    const currentPose = poseRef.current;
     const endpointMaxDistance =
       (isCharacterInteraction
         ? currentMetrics.endpointHitSize * 1.35
@@ -568,60 +586,62 @@ export const SkeletonPoseOverlay = forwardRef<
       (isCharacterInteraction
         ? currentMetrics.bodyHitSize * 1.85
         : currentMetrics.bodyHitSize) / 2;
-    const candidates: Array<{
-      center: Point2D;
-      maxDistance: number;
-      scoreMultiplier: number;
-      target: SkeletonDragTarget;
-    }> = [
-      ...CONTROL_JOINTS.map((jointName) => ({
-        center: poseRef.current.joints[jointName],
-        maxDistance: jointMaxDistance,
-        scoreMultiplier: JOINT_PRIORITY_BONUS,
-        target: { kind: "joint", id: jointName } as SkeletonDragTarget,
-      })),
-      {
-        center: poseRef.current.joints.head,
-        maxDistance: headMaxDistance,
-        scoreMultiplier: HEAD_PRIORITY_BONUS,
-        target: { kind: "head" },
-      },
-      ...ENDPOINTS.map((endpointName) => ({
-        center: getEndpointPosition(poseRef.current, endpointName),
-        maxDistance: endpointMaxDistance,
-        scoreMultiplier: ENDPOINT_PRIORITY_BONUS,
-        target: { kind: "endpoint", id: endpointName } as SkeletonDragTarget,
-      })),
-      {
-        center: getSkeletonCenter(poseRef.current),
-        maxDistance: bodyMaxDistance,
-        scoreMultiplier: BODY_PRIORITY_BONUS,
-        target: { kind: "body" },
-      },
-    ];
-    const nearest = candidates.reduce<{
-      score: number;
-      target: SkeletonDragTarget;
-    } | null>((currentNearest, candidate) => {
-      const distanceSquared = getDistanceSquared(point, candidate.center);
+    let nearestScore = Number.POSITIVE_INFINITY;
+    let nearestTarget: SkeletonDragTarget | null = null;
 
-      if (distanceSquared > candidate.maxDistance * candidate.maxDistance) {
-        return currentNearest;
+    function considerCandidate(
+      center: Point2D,
+      maxDistance: number,
+      scoreMultiplier: number,
+      target: SkeletonDragTarget,
+    ) {
+      const distanceSquared = getDistanceSquared(point, center);
+
+      if (distanceSquared > maxDistance * maxDistance) {
+        return;
       }
 
-      const score = distanceSquared * candidate.scoreMultiplier;
+      const score = distanceSquared * scoreMultiplier;
 
-      if (!currentNearest || score < currentNearest.score) {
-        return {
-          score,
-          target: candidate.target,
-        };
+      if (score < nearestScore) {
+        nearestScore = score;
+        nearestTarget = target;
       }
+    }
 
-      return currentNearest;
-    }, null);
+    CONTROL_JOINTS.forEach((jointName) => {
+      considerCandidate(
+        currentPose.joints[jointName],
+        jointMaxDistance,
+        JOINT_PRIORITY_BONUS,
+        { kind: "joint", id: jointName },
+      );
+    });
 
-    return nearest?.target ?? null;
+    considerCandidate(
+      currentPose.joints.head,
+      headMaxDistance,
+      HEAD_PRIORITY_BONUS,
+      { kind: "head" },
+    );
+
+    ENDPOINTS.forEach((endpointName) => {
+      considerCandidate(
+        getEndpointPosition(currentPose, endpointName),
+        endpointMaxDistance,
+        ENDPOINT_PRIORITY_BONUS,
+        { kind: "endpoint", id: endpointName },
+      );
+    });
+
+    considerCandidate(
+      getSkeletonCenter(currentPose),
+      bodyMaxDistance,
+      BODY_PRIORITY_BONUS,
+      { kind: "body" },
+    );
+
+    return nearestTarget;
   }
 
   function beginNearestDrag(point: Point2D) {
@@ -942,7 +962,7 @@ export const SkeletonPoseOverlay = forwardRef<
       )}
       style={styles.overlay}
     >
-      {characterRenderStyle === "rupaRig" ? (
+      {shouldRenderRasterCharacter ? (
         <CharacterLayer
           bodyModel={bodyModel}
           opacity={characterOpacity.character}
@@ -953,10 +973,7 @@ export const SkeletonPoseOverlay = forwardRef<
         />
       ) : null}
 
-      {characterRenderStyle === "minimalSkeleton" ||
-      characterRenderStyle === "stickmanCharacter" ||
-      characterRenderStyle === "stickmanCharacterNavy" ||
-      characterRenderStyle === "stickmanCharacterBlack" ? (
+      {shouldRenderVectorCharacter ? (
         <MinimalSkeletonCharacterLayer
           activeControlId={activeControlId}
           bodyModel={bodyModel}
@@ -1008,8 +1025,8 @@ export const SkeletonPoseOverlay = forwardRef<
           />
 
           <Circle
-            cx={getSkeletonCenter(pose).x}
-            cy={getSkeletonCenter(pose).y}
+            cx={skeletonCenter.x}
+            cy={skeletonCenter.y}
             fill={
               activeControlId === "body"
                 ? "#ffb37a"
@@ -1092,13 +1109,12 @@ export const SkeletonPoseOverlay = forwardRef<
         style={[
           styles.bodyHitArea,
           (() => {
-            const center = getSkeletonCenter(pose);
             const hitSize = shouldShowCharacter
               ? metrics.bodyHitSize * 1.85
               : metrics.bodyHitSize;
             const frame = {
-              left: center.x - hitSize / 2,
-              top: center.y - hitSize / 2,
+              left: skeletonCenter.x - hitSize / 2,
+              top: skeletonCenter.y - hitSize / 2,
             };
 
             hitFramesRef.current.body = frame;

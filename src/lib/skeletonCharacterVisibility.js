@@ -1,3 +1,7 @@
+const {
+  isStickmanCharacterRenderStyle,
+} = require("./skeletonCharacterRenderStyle.js");
+
 function getSkeletonCharacterOverlayOpacity({
   activeControlId,
   characterRenderStyle,
@@ -25,11 +29,7 @@ function getSkeletonCharacterOverlayOpacity({
     };
   }
 
-  if (
-    characterRenderStyle === "stickmanCharacter" ||
-    characterRenderStyle === "stickmanCharacterNavy" ||
-    characterRenderStyle === "stickmanCharacterBlack"
-  ) {
+  if (isStickmanCharacterRenderStyle(characterRenderStyle)) {
     return {
       bone: 0,
       body: 0,

@@ -33,7 +33,7 @@ export function CharacterLayer({
   const transforms = useMemo(
     () =>
       computeCharacterPartTransforms(
-        [...parts],
+        parts,
         pose,
         bodyModel,
         transformOptions,
