@@ -1,5 +1,6 @@
 function getSkeletonCharacterOverlayOpacity({
   activeControlId,
+  characterRenderStyle,
   characterVisible,
 }) {
   if (!characterVisible) {
@@ -10,6 +11,32 @@ function getSkeletonCharacterOverlayOpacity({
       head: 1,
       inactiveEndpoint: 1,
       inactiveJoint: 1,
+    };
+  }
+
+  if (characterRenderStyle === "minimalSkeleton") {
+    return {
+      bone: 0,
+      body: 0,
+      character: activeControlId ? 0.88 : 0.72,
+      head: 0,
+      inactiveEndpoint: 0,
+      inactiveJoint: 0,
+    };
+  }
+
+  if (
+    characterRenderStyle === "stickmanCharacter" ||
+    characterRenderStyle === "stickmanCharacterNavy" ||
+    characterRenderStyle === "stickmanCharacterBlack"
+  ) {
+    return {
+      bone: 0,
+      body: 0,
+      character: activeControlId ? 1 : 0.94,
+      head: 0,
+      inactiveEndpoint: 0,
+      inactiveJoint: 0,
     };
   }
 

@@ -1,5 +1,12 @@
 export type SkeletonCharacterOverlayOpacityInput = {
   activeControlId: string | null;
+  characterRenderStyle?:
+    | "minimalSkeleton"
+    | "stickmanCharacter"
+    | "stickmanCharacterNavy"
+    | "stickmanCharacterBlack"
+    | "rupaRig"
+    | "none";
   characterVisible: boolean;
 };
 

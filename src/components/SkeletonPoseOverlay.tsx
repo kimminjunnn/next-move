@@ -64,11 +64,21 @@ import type {
   SkeletonPose,
 } from "../types/skeletonPose";
 import { CharacterLayer } from "./RupaCharacterLayer";
+import { MinimalSkeletonCharacterLayer } from "./MinimalSkeletonCharacterLayer";
+
+export type SkeletonCharacterRenderStyle =
+  | "minimalSkeleton"
+  | "stickmanCharacter"
+  | "stickmanCharacterNavy"
+  | "stickmanCharacterBlack"
+  | "rupaRig"
+  | "none";
 
 type SkeletonPoseOverlayProps = {
   allowEmptySpacePinchScale?: boolean;
   allowPinchScaleInSimulation?: boolean;
   characterParts?: ReadonlyArray<CharacterRigPart>;
+  characterRenderStyle?: SkeletonCharacterRenderStyle;
   getCharacterTransformOptions?: (
     pose: SkeletonPose,
     activeControlId: string | null,
@@ -278,6 +288,7 @@ export const SkeletonPoseOverlay = forwardRef<
     allowEmptySpacePinchScale = false,
     allowPinchScaleInSimulation = false,
     characterParts = RUPA_BACK_CHARACTER_PARTS,
+    characterRenderStyle = "stickmanCharacter",
     getCharacterTransformOptions = getRupaCharacterTransformOptions,
     initialCenter,
     mode,
@@ -305,9 +316,11 @@ export const SkeletonPoseOverlay = forwardRef<
       canUndo: false,
     });
   const [activeControlId, setActiveControlId] = useState<string | null>(null);
-  const shouldShowCharacter = mode === "simulating";
+  const shouldShowCharacter =
+    mode === "simulating" && characterRenderStyle !== "none";
   const characterOpacity = getSkeletonCharacterOverlayOpacity({
     activeControlId,
+    characterRenderStyle,
     characterVisible: shouldShowCharacter,
   });
   const characterTransformOptions = useMemo(
@@ -929,14 +942,30 @@ export const SkeletonPoseOverlay = forwardRef<
       )}
       style={styles.overlay}
     >
-      <CharacterLayer
-        bodyModel={bodyModel}
-        opacity={characterOpacity.character}
-        parts={characterParts}
-        pose={pose}
-        transformOptions={characterTransformOptions}
-        visible={shouldShowCharacter}
-      />
+      {characterRenderStyle === "rupaRig" ? (
+        <CharacterLayer
+          bodyModel={bodyModel}
+          opacity={characterOpacity.character}
+          parts={characterParts}
+          pose={pose}
+          transformOptions={characterTransformOptions}
+          visible={shouldShowCharacter}
+        />
+      ) : null}
+
+      {characterRenderStyle === "minimalSkeleton" ||
+      characterRenderStyle === "stickmanCharacter" ||
+      characterRenderStyle === "stickmanCharacterNavy" ||
+      characterRenderStyle === "stickmanCharacterBlack" ? (
+        <MinimalSkeletonCharacterLayer
+          activeControlId={activeControlId}
+          bodyModel={bodyModel}
+          opacity={characterOpacity.character}
+          pose={pose}
+          renderStyle={characterRenderStyle}
+          visible={shouldShowCharacter}
+        />
+      ) : null}
 
       <View pointerEvents="none" style={styles.skeletonLayer}>
         <Svg height="100%" width="100%">

@@ -55,3 +55,63 @@ test("keeps skeleton guides hidden while dragging a character control", () => {
     },
   );
 });
+
+test("uses a lighter character opacity for the minimal skeleton renderer", () => {
+  assert.deepEqual(
+    getSkeletonCharacterOverlayOpacity({
+      activeControlId: null,
+      characterRenderStyle: "minimalSkeleton",
+      characterVisible: true,
+    }),
+    {
+      bone: 0,
+      body: 0,
+      character: 0.72,
+      head: 0,
+      inactiveEndpoint: 0,
+      inactiveJoint: 0,
+    },
+  );
+});
+
+test("keeps the active minimal skeleton readable while dragging", () => {
+  assert.deepEqual(
+    getSkeletonCharacterOverlayOpacity({
+      activeControlId: "rightHand",
+      characterRenderStyle: "minimalSkeleton",
+      characterVisible: true,
+    }),
+    {
+      bone: 0,
+      body: 0,
+      character: 0.88,
+      head: 0,
+      inactiveEndpoint: 0,
+      inactiveJoint: 0,
+    },
+  );
+});
+
+test("keeps the stickman character more present than the thin minimal skeleton", () => {
+  [
+    "stickmanCharacter",
+    "stickmanCharacterNavy",
+    "stickmanCharacterBlack",
+  ].forEach((characterRenderStyle) => {
+    assert.deepEqual(
+      getSkeletonCharacterOverlayOpacity({
+        activeControlId: null,
+        characterRenderStyle,
+        characterVisible: true,
+      }),
+      {
+        bone: 0,
+        body: 0,
+        character: 0.94,
+        head: 0,
+        inactiveEndpoint: 0,
+        inactiveJoint: 0,
+      },
+    );
+  });
+});
