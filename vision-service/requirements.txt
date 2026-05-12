@@ -5,3 +5,4 @@ numpy==2.2.6
 opencv-python-headless==4.10.0.84
 certifi==2025.11.12
 pillow-heif==1.1.1
+ultralytics==8.4.48

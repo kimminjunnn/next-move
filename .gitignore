@@ -51,3 +51,6 @@ vision-service/debug_outputs*/
 vision-service/regression_inputs/wall_photos_raw/
 vision-service/regression_inputs/*
 !vision-service/regression_inputs/README.md
+vision-service/**/*.pt
+vision-service/**/*.onnx
+vision-service/runs/

@@ -1,11 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from app.image_loader import load_image
-from app.roboflow_detection import (
-    RoboflowConfigError,
-    RoboflowRequestError,
-    infer_wall_objects_with_roboflow,
-)
+from app.roboflow_detection import RoboflowConfigError
 from app.route_helper import build_route_response
 from app.schemas import (
     AnalyzeWallRequest,
@@ -13,6 +9,7 @@ from app.schemas import (
     SelectRouteRequest,
     SelectRouteResponse,
 )
+from app.yolo_detection import YoloModelError, infer_wall_objects_with_yolo
 
 router = APIRouter()
 
@@ -21,13 +18,13 @@ router = APIRouter()
 def analyze_wall(payload: AnalyzeWallRequest):
     try:
         image = load_image(payload)
-        result = infer_wall_objects_with_roboflow(image)
+        result = infer_wall_objects_with_yolo(image)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
     except RoboflowConfigError as error:
         raise HTTPException(status_code=500, detail=str(error))
-    except RoboflowRequestError:
-        raise HTTPException(status_code=502, detail="roboflow_request_failed")
+    except YoloModelError:
+        raise HTTPException(status_code=502, detail="yolo_inference_failed")
     except Exception:
         raise HTTPException(status_code=500, detail="analyze_wall_failed")
 

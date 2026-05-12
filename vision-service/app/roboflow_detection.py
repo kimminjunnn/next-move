@@ -22,7 +22,7 @@ from app.schemas import (
 )
 
 ALLOWED_CLASSES = {"hold", "volume"}
-DEFAULT_CONFIDENCE_THRESHOLD = 0.35
+DEFAULT_CONFIDENCE_THRESHOLD = 0.7
 DEFAULT_API_URL = "https://detect.roboflow.com"
 MAX_ROBOFLOW_IMAGE_SIDE = 1600
 
