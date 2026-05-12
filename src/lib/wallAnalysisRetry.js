@@ -7,3 +7,7 @@ export function shouldShowWallAnalysisRetry({
     flowStep === "selectingStartHold" && !analysisResult && highlightError,
   );
 }
+
+export function shouldShowWallAnalysisFallbackStart(state) {
+  return shouldShowWallAnalysisRetry(state);
+}

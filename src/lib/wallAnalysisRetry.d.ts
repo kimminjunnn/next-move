@@ -9,3 +9,7 @@ export type WallAnalysisRetryState = {
 export function shouldShowWallAnalysisRetry(
   state: WallAnalysisRetryState,
 ): boolean;
+
+export function shouldShowWallAnalysisFallbackStart(
+  state: WallAnalysisRetryState,
+): boolean;

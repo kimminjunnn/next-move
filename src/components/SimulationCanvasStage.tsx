@@ -20,7 +20,10 @@ import {
   viewportPointToAnalysisPoint,
 } from "../lib/simulationViewport";
 import { toggleRouteIncludedObjectIds } from "../lib/routeSelectionState";
-import { shouldShowWallAnalysisRetry } from "../lib/wallAnalysisRetry";
+import {
+  shouldShowWallAnalysisFallbackStart,
+  shouldShowWallAnalysisRetry,
+} from "../lib/wallAnalysisRetry";
 import type { Point2D } from "../types/geometry";
 import type {
   RouteSelectionResult,
@@ -386,6 +389,14 @@ export function SimulationCanvasStage({
     setAnalysisAttempt((currentAttempt) => currentAttempt + 1);
   }
 
+  function handleStartWithoutAnalysis() {
+    setAnalysisResult(null);
+    setRouteResult(null);
+    setSelectedStartHoldObjectId(null);
+    setHighlightError(null);
+    setFlowStep("sizingSkeleton");
+  }
+
   const holdCount = analysisResult
     ? analysisResult.objects.filter((object) => object.kind === "hold").length
     : 0;
@@ -437,6 +448,11 @@ export function SimulationCanvasStage({
     flowStep === "sizingSkeleton" || flowStep === "simulating";
   const shouldShowInfoCard = flowStep !== "simulating";
   const shouldShowRetryButton = shouldShowWallAnalysisRetry({
+    analysisResult,
+    flowStep,
+    highlightError,
+  });
+  const shouldShowFallbackStartButton = shouldShowWallAnalysisFallbackStart({
     analysisResult,
     flowStep,
     highlightError,
@@ -553,27 +569,56 @@ export function SimulationCanvasStage({
                       <Text style={styles.errorText}>{highlightError}</Text>
                     ) : null}
 
-                    {shouldShowRetryButton ? (
-                      <Pressable
-                        accessibilityLabel="사진 분석 다시 시도"
-                        onPress={(event) => {
-                          event.stopPropagation();
-                          handleRetryAnalysis();
-                        }}
-                        style={({ pressed }) => [
-                          styles.retryAnalysisButton,
-                          pressed ? styles.retryAnalysisButtonPressed : null,
-                        ]}
-                      >
-                        <Ionicons
-                          color={brand.colors.text}
-                          name="refresh"
-                          size={15}
-                        />
-                        <Text style={styles.retryAnalysisButtonText}>
-                          다시 시도
-                        </Text>
-                      </Pressable>
+                    {shouldShowFallbackStartButton || shouldShowRetryButton ? (
+                      <View style={styles.analysisFailureActions}>
+                        {shouldShowFallbackStartButton ? (
+                          <Pressable
+                            accessibilityLabel="분석 없이 시뮬레이션 시작"
+                            onPress={(event) => {
+                              event.stopPropagation();
+                              handleStartWithoutAnalysis();
+                            }}
+                            style={({ pressed }) => [
+                              styles.startWithoutAnalysisButton,
+                              pressed
+                                ? styles.startWithoutAnalysisButtonPressed
+                                : null,
+                            ]}
+                          >
+                            <Ionicons
+                              color={brand.colors.primaryText}
+                              name="body-outline"
+                              size={15}
+                            />
+                            <Text style={styles.startWithoutAnalysisButtonText}>
+                              분석 없이 시작
+                            </Text>
+                          </Pressable>
+                        ) : null}
+
+                        {shouldShowRetryButton ? (
+                          <Pressable
+                            accessibilityLabel="사진 분석 다시 시도"
+                            onPress={(event) => {
+                              event.stopPropagation();
+                              handleRetryAnalysis();
+                            }}
+                            style={({ pressed }) => [
+                              styles.retryAnalysisButton,
+                              pressed ? styles.retryAnalysisButtonPressed : null,
+                            ]}
+                          >
+                            <Ionicons
+                              color={brand.colors.text}
+                              name="refresh"
+                              size={15}
+                            />
+                            <Text style={styles.retryAnalysisButtonText}>
+                              다시 시도
+                            </Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
                     ) : null}
                   </View>
                 </View>
@@ -892,8 +937,7 @@ const styles = StyleSheet.create({
   },
   retryAnalysisButton: {
     alignSelf: "flex-start",
-    minHeight: 32,
-    marginTop: 10,
+    minHeight: 34,
     borderRadius: 16,
     paddingHorizontal: 12,
     flexDirection: "row",
@@ -906,6 +950,32 @@ const styles = StyleSheet.create({
     backgroundColor: brand.colors.primaryPressed,
   },
   retryAnalysisButtonText: {
+    color: brand.colors.primaryText,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  analysisFailureActions: {
+    marginTop: 10,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 8,
+  },
+  startWithoutAnalysisButton: {
+    alignSelf: "flex-start",
+    minHeight: 34,
+    borderRadius: 17,
+    paddingHorizontal: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: brand.colors.primary,
+  },
+  startWithoutAnalysisButtonPressed: {
+    backgroundColor: brand.colors.primaryPressed,
+  },
+  startWithoutAnalysisButtonText: {
     color: brand.colors.primaryText,
     fontSize: 12,
     fontWeight: "900",
