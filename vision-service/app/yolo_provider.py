@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Iterable, Literal
 
 import numpy as np
+import cv2
 
 from app.detection_utils import (
     ALLOWED_CLASSES,
@@ -51,6 +52,85 @@ def _to_numpy(values: Any) -> np.ndarray:
     if hasattr(values, "numpy"):
         values = values.numpy()
     return np.asarray(values)
+
+
+def _distance_to_segment(point: np.ndarray, start: np.ndarray, end: np.ndarray) -> float:
+    segment = end - start
+    length_squared = float(np.dot(segment, segment))
+    if length_squared == 0:
+        return float(np.linalg.norm(point - start))
+
+    t = max(0.0, min(1.0, float(np.dot(point - start, segment) / length_squared)))
+    projection = start + t * segment
+    return float(np.linalg.norm(point - projection))
+
+
+def _remove_narrow_spike_vertices(points: np.ndarray) -> np.ndarray:
+    if len(points) < 5:
+        return points
+
+    kept: list[np.ndarray] = []
+    count = len(points)
+    for index, point in enumerate(points):
+        previous_point = points[(index - 1) % count]
+        next_point = points[(index + 1) % count]
+        base_width = float(np.linalg.norm(next_point - previous_point))
+        spike_height = _distance_to_segment(point, previous_point, next_point)
+        if base_width <= 8.0 and spike_height >= 8.0:
+            continue
+        kept.append(point)
+
+    if len(kept) < 3:
+        return points
+    return np.asarray(kept, dtype=np.int32)
+
+
+def _clean_contour_points(
+    polygon: np.ndarray,
+    width: int,
+    height: int,
+) -> list[Point]:
+    raw_points = np.asarray(polygon)
+    if len(raw_points) < 3:
+        return []
+
+    contour = np.array(
+        [
+            [
+                max(0, min(width - 1, int(round(float(point[0]))))),
+                max(0, min(height - 1, int(round(float(point[1]))))),
+            ]
+            for point in raw_points
+        ],
+        dtype=np.int32,
+    )
+    contour = _remove_narrow_spike_vertices(contour)
+
+    mask = np.zeros((height, width), dtype=np.uint8)
+    cv2.fillPoly(mask, [contour], 255)
+
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=1)
+
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return [_point_from_xy(point[0], point[1], width=width, height=height) for point in raw_points]
+
+    largest_contour = max(contours, key=cv2.contourArea)
+    if len(largest_contour) < 3:
+        return [_point_from_xy(point[0], point[1], width=width, height=height) for point in raw_points]
+
+    perimeter = cv2.arcLength(largest_contour, True)
+    epsilon = max(1.0, perimeter * 0.003)
+    simplified = cv2.approxPolyDP(largest_contour, epsilon, True).reshape(-1, 2)
+    if len(simplified) < 3:
+        simplified = largest_contour.reshape(-1, 2)
+
+    return [
+        _point_from_xy(point[0], point[1], width=width, height=height)
+        for point in simplified
+    ]
 
 
 def _model_path_from_env() -> Path:
@@ -107,10 +187,9 @@ def yolo_results_to_response(
             if len(raw_points) < 3:
                 continue
 
-            contour = [
-                _point_from_xy(point[0], point[1], width=image_width, height=image_height)
-                for point in raw_points
-            ]
+            contour = _clean_contour_points(raw_points, width=image_width, height=image_height)
+            if len(contour) < 3:
+                continue
             bbox = bbox_from_points(contour)
             center = center_from_points(contour, bbox)
             next_index = len(by_kind[kind]) + 1

@@ -3,10 +3,29 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from app.yolo_provider import yolo_results_to_response
+from app.yolo_provider import _clean_contour_points, yolo_results_to_response
 
 
 class YoloDetectionTests(unittest.TestCase):
+    def test_cleans_thin_spikes_from_mask_contours(self):
+        polygon = np.array(
+            [
+                [20, 20],
+                [80, 20],
+                [80, 80],
+                [52, 80],
+                [50, 98],
+                [48, 80],
+                [20, 80],
+            ],
+            dtype=np.float32,
+        )
+
+        cleaned = _clean_contour_points(polygon, width=100, height=100)
+
+        self.assertTrue(cleaned)
+        self.assertLess(max(point.y for point in cleaned), 90)
+
     def test_converts_yolo_segments_to_wall_objects(self):
         image = np.zeros((100, 120, 3), dtype=np.uint8)
         image[:] = (10, 20, 30)
