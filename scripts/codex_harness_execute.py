@@ -243,8 +243,6 @@ Keep generated artifacts out of git unless the step explicitly says they are del
             str(self._root),
             "--sandbox",
             self._sandbox,
-            "--ask-for-approval",
-            self._approval,
         ]
         if self._ephemeral:
             cmd.append("--ephemeral")
