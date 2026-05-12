@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import {
+  ImageBackground,
   Pressable,
   StyleSheet,
   Text,
@@ -22,23 +23,18 @@ import {
 } from "../src/lib/rupaCharacterRig";
 import { brand } from "../src/theme/brand";
 
-type SkeletonLabMode = "calibrating" | "simulating";
-
-const HOLD_POINTS = [
-  { id: "hold-1", x: "19%", y: "24%", size: 38, color: "#42a9ff" },
-  { id: "hold-2", x: "72%", y: "20%", size: 44, color: "#f05f7a" },
-  { id: "hold-3", x: "51%", y: "38%", size: 32, color: "#f1b843" },
-  { id: "hold-4", x: "22%", y: "57%", size: 46, color: "#55bd7d" },
-  { id: "hold-5", x: "76%", y: "61%", size: 36, color: "#9c70ff" },
-  { id: "hold-6", x: "44%", y: "78%", size: 42, color: "#e85d3f" },
-] as const;
+type SkeletonLabRenderSelection =
+  | RupaCharacterVariantId
+  | "minimalSkeleton"
+  | "stickmanCharacter"
+  | "stickmanCharacterNavy"
+  | "stickmanCharacterBlack";
 
 export default function SkeletonLabScreen() {
   const router = useRouter();
   const skeletonOverlayRef = useRef<SkeletonPoseOverlayHandle>(null);
-  const [mode, setMode] = useState<SkeletonLabMode>("simulating");
-  const [characterVariantId, setCharacterVariantId] =
-    useState<RupaCharacterVariantId>("illustrated");
+  const [renderSelection, setRenderSelection] =
+    useState<SkeletonLabRenderSelection>("stickmanCharacter");
   const [historyState, setHistoryState] =
     useState<SkeletonPoseOverlayHistoryState>({
       canRedo: false,
@@ -47,8 +43,16 @@ export default function SkeletonLabScreen() {
   const [resetKey, setResetKey] = useState(0);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const characterVariant = useMemo(
-    () => getRupaCharacterVariant(characterVariantId),
-    [characterVariantId],
+    () =>
+      getRupaCharacterVariant(
+        renderSelection === "minimalSkeleton" ||
+          renderSelection === "stickmanCharacter" ||
+          renderSelection === "stickmanCharacterNavy" ||
+          renderSelection === "stickmanCharacterBlack"
+          ? "illustrated"
+          : renderSelection,
+      ),
+    [renderSelection],
   );
 
   function handleViewportLayout(event: LayoutChangeEvent) {
@@ -111,50 +115,15 @@ export default function SkeletonLabScreen() {
           </View>
         </View>
 
-        <View style={styles.toolbar}>
-          <Pressable
-            onPress={() => setMode("simulating")}
-            style={[
-              styles.segmentButton,
-              mode === "simulating" ? styles.segmentButtonActive : null,
-            ]}
-          >
-            <Text
-              style={[
-                styles.segmentText,
-                mode === "simulating" ? styles.segmentTextActive : null,
-              ]}
-            >
-              무빙
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setMode("calibrating")}
-            style={[
-              styles.segmentButton,
-              mode === "calibrating" ? styles.segmentButtonActive : null,
-            ]}
-          >
-            <Text
-              style={[
-                styles.segmentText,
-                mode === "calibrating" ? styles.segmentTextActive : null,
-              ]}
-            >
-              크기 조정
-            </Text>
-          </Pressable>
-        </View>
-
         <View style={styles.variantToolbar}>
           {RUPA_BACK_CHARACTER_VARIANTS.map((variant) => {
-            const isActive = variant.id === characterVariantId;
+            const isActive = variant.id === renderSelection;
 
             return (
               <Pressable
                 accessibilityLabel={`루파 캐릭터 ${variant.label} 버전`}
                 key={variant.id}
-                onPress={() => setCharacterVariantId(variant.id)}
+                onPress={() => setRenderSelection(variant.id)}
                 style={[
                   styles.variantButton,
                   isActive ? styles.variantButtonActive : null,
@@ -171,38 +140,125 @@ export default function SkeletonLabScreen() {
               </Pressable>
             );
           })}
+
+          <Pressable
+            accessibilityLabel="스틱맨 캐릭터 렌더러"
+            onPress={() => setRenderSelection("stickmanCharacter")}
+            style={[
+              styles.variantButton,
+              renderSelection === "stickmanCharacter"
+                ? styles.variantButtonActive
+                : null,
+            ]}
+          >
+            <Text
+              style={[
+                styles.variantText,
+                renderSelection === "stickmanCharacter"
+                  ? styles.variantTextActive
+                  : null,
+              ]}
+            >
+              스틱맨
+            </Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityLabel="네이비 스틱맨 캐릭터 렌더러"
+            onPress={() => setRenderSelection("stickmanCharacterNavy")}
+            style={[
+              styles.variantButton,
+              renderSelection === "stickmanCharacterNavy"
+                ? styles.variantButtonActive
+                : null,
+            ]}
+          >
+            <Text
+              style={[
+                styles.variantText,
+                renderSelection === "stickmanCharacterNavy"
+                  ? styles.variantTextActive
+                  : null,
+              ]}
+            >
+              네이비
+            </Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityLabel="검정 스틱맨 캐릭터 렌더러"
+            onPress={() => setRenderSelection("stickmanCharacterBlack")}
+            style={[
+              styles.variantButton,
+              renderSelection === "stickmanCharacterBlack"
+                ? styles.variantButtonActive
+                : null,
+            ]}
+          >
+            <Text
+              style={[
+                styles.variantText,
+                renderSelection === "stickmanCharacterBlack"
+                  ? styles.variantTextActive
+                  : null,
+              ]}
+            >
+              검정
+            </Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityLabel="미니멀 스켈레톤 렌더러"
+            onPress={() => setRenderSelection("minimalSkeleton")}
+            style={[
+              styles.variantButton,
+              renderSelection === "minimalSkeleton"
+                ? styles.variantButtonActive
+                : null,
+            ]}
+          >
+            <Text
+              style={[
+                styles.variantText,
+                renderSelection === "minimalSkeleton"
+                  ? styles.variantTextActive
+                  : null,
+              ]}
+            >
+              미니멀
+            </Text>
+          </Pressable>
         </View>
 
         <View onLayout={handleViewportLayout} style={styles.stage}>
-          <View pointerEvents="none" style={styles.wallGrid}>
-            {HOLD_POINTS.map((hold) => (
-              <View
-                key={hold.id}
-                style={[
-                  styles.hold,
-                  {
-                    backgroundColor: hold.color,
-                    borderRadius: hold.size / 2,
-                    height: hold.size,
-                    left: hold.x,
-                    top: hold.y,
-                    width: hold.size,
-                  },
-                ]}
-              />
-            ))}
+          <View pointerEvents="none" style={styles.wallPhoto}>
+            <ImageBackground
+              resizeMode="cover"
+              source={require("../assets/rupa_theme/backgrounds/IMG_3392.png")}
+              style={styles.wallPhoto}
+            />
           </View>
 
           {hasViewport ? (
             <SkeletonPoseOverlay
-              key={`${mode}-${resetKey}`}
+              key={resetKey}
               ref={skeletonOverlayRef}
+              allowEmptySpacePinchScale
+              allowPinchScaleInSimulation
               characterParts={characterVariant.parts}
+              characterRenderStyle={
+                renderSelection === "minimalSkeleton" ||
+                renderSelection === "stickmanCharacter" ||
+                renderSelection === "stickmanCharacterNavy" ||
+                renderSelection === "stickmanCharacterBlack"
+                  ? renderSelection
+                  : "rupaRig"
+              }
               initialCenter={{
                 x: viewport.width * 0.5,
                 y: viewport.height * 0.48,
               }}
-              mode={mode}
+              mode="simulating"
               onHistoryStateChange={setHistoryState}
               viewportHeight={viewport.height}
               viewportWidth={viewport.width}
@@ -264,13 +320,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0,
   },
-  toolbar: {
-    flexDirection: "row",
-    alignSelf: "stretch",
-    padding: 4,
-    borderRadius: 18,
-    backgroundColor: "rgba(36,24,16,0.08)",
-  },
   variantToolbar: {
     flexDirection: "row",
     alignSelf: "stretch",
@@ -299,25 +348,6 @@ const styles = StyleSheet.create({
   variantTextActive: {
     color: "#fffdf8",
   },
-  segmentButton: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 42,
-    borderRadius: 14,
-  },
-  segmentButtonActive: {
-    backgroundColor: "#241810",
-  },
-  segmentText: {
-    color: "rgba(36,24,16,0.62)",
-    fontSize: 15,
-    fontWeight: "800",
-    letterSpacing: 0,
-  },
-  segmentTextActive: {
-    color: "#fffdf8",
-  },
   stage: {
     flex: 1,
     overflow: "hidden",
@@ -326,22 +356,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(36,24,16,0.16)",
   },
-  wallGrid: {
+  wallPhoto: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#35383a",
-  },
-  hold: {
-    position: "absolute",
-    marginLeft: -18,
-    marginTop: -18,
-    borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.72)",
-    shadowColor: "#000",
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
   },
 });

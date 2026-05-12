@@ -583,6 +583,7 @@ export function SimulationCanvasStage({
               ref={skeletonOverlayRef}
               allowEmptySpacePinchScale
               allowPinchScaleInSimulation
+              characterRenderStyle="stickmanCharacter"
               initialCenter={skeletonInitialCenter}
               mode={
                 flowStep === "sizingSkeleton"
