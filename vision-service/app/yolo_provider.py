@@ -7,23 +7,20 @@ from typing import Any, Iterable, Literal
 
 import numpy as np
 
-from app.roboflow_detection import (
+from app.detection_utils import (
     ALLOWED_CLASSES,
     DEFAULT_CONFIDENCE_THRESHOLD,
-    RoboflowConfigError,
-    _assign_parent_volumes,
-    _bbox_from_points,
-    _center_from_points,
-    _mean_color,
-    load_roboflow_env,
+    WallDetectionConfigError,
+    WallDetectionInferenceError,
+    assign_parent_volumes,
+    bbox_from_points,
+    center_from_points,
+    load_detection_env,
+    mean_color,
 )
 from app.schemas import AnalyzeWallResponse, DetectedWallObject, ImageMeta, Point
 
 MODEL_PATH_ENV = "RUPA_WALL_MODEL_PATH"
-
-
-class YoloModelError(RuntimeError):
-    pass
 
 
 def _point_from_xy(x: float, y: float, width: int, height: int) -> Point:
@@ -57,14 +54,14 @@ def _to_numpy(values: Any) -> np.ndarray:
 
 
 def _model_path_from_env() -> Path:
-    load_roboflow_env()
+    load_detection_env()
     raw_path = os.environ.get(MODEL_PATH_ENV)
     if not raw_path:
-        raise RoboflowConfigError("rupa_wall_model_path_missing")
+        raise WallDetectionConfigError("rupa_wall_model_path_missing")
 
     path = Path(raw_path).expanduser()
     if not path.exists():
-        raise RoboflowConfigError("rupa_wall_model_missing")
+        raise WallDetectionConfigError("rupa_wall_model_missing")
     return path
 
 
@@ -73,7 +70,7 @@ def _load_yolo_model(model_path: str):
     try:
         from ultralytics import YOLO
     except ImportError as error:
-        raise RoboflowConfigError("ultralytics_missing") from error
+        raise WallDetectionConfigError("ultralytics_missing") from error
 
     return YOLO(model_path)
 
@@ -114,8 +111,8 @@ def yolo_results_to_response(
                 _point_from_xy(point[0], point[1], width=image_width, height=image_height)
                 for point in raw_points
             ]
-            bbox = _bbox_from_points(contour)
-            center = _center_from_points(contour, bbox)
+            bbox = bbox_from_points(contour)
+            center = center_from_points(contour, bbox)
             next_index = len(by_kind[kind]) + 1
             by_kind[kind].append(
                 DetectedWallObject(
@@ -124,12 +121,12 @@ def yolo_results_to_response(
                     bbox=bbox,
                     center=center,
                     contour=contour,
-                    color=_mean_color(image, contour),
+                    color=mean_color(image, contour),
                     parentVolumeObjectId=None,
                 )
             )
 
-    _assign_parent_volumes(by_kind["hold"], by_kind["volume"])
+    assign_parent_volumes(by_kind["hold"], by_kind["volume"])
     objects = sorted(
         [*by_kind["hold"], *by_kind["volume"]],
         key=lambda obj: (0 if obj.kind == "hold" else 1, obj.bbox.y, obj.bbox.x),
@@ -150,13 +147,13 @@ def infer_wall_objects_with_yolo(
     try:
         results = model.predict(
             image,
-            imgsz=1280,
+            imgsz=960,
             conf=confidence_threshold,
             retina_masks=True,
             verbose=False,
         )
     except Exception as error:
-        raise YoloModelError("yolo_inference_failed") from error
+        raise WallDetectionInferenceError("yolo_inference_failed") from error
 
     return yolo_results_to_response(
         image=image,

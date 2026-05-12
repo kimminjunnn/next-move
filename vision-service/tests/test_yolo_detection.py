@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from app.yolo_detection import yolo_results_to_response
+from app.yolo_provider import yolo_results_to_response
 
 
 class YoloDetectionTests(unittest.TestCase):

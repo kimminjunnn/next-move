@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from app.roboflow_detection import (
+from app.roboflow_provider import (
     _resize_image_for_roboflow,
     _scale_roboflow_payload,
     roboflow_predictions_to_response,
