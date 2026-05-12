@@ -3,6 +3,11 @@
     {
       "dir": "rupa-rig-friendly-assets",
       "status": "completed"
+    },
+    {
+      "dir": "minimal-skeleton-character",
+      "status": "completed",
+      "completed_at": "2026-05-11T21:34:59+0900"
     }
   ]
 }

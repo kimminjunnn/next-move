@@ -1,0 +1,40 @@
+{
+  "project": "Rupa",
+  "phase": "minimal-skeleton-character",
+  "steps": [
+    {
+      "step": 0,
+      "name": "lock-render-contracts",
+      "status": "completed",
+      "started_at": "2026-05-11T21:23:33+0900",
+      "summary": "Added reusable pose head-facing helper while keeping getRupaHeadFacing compatible; locked left/right/back facing contracts for active arm controls and asymmetric hand reach.",
+      "completed_at": "2026-05-11T21:26:19+0900"
+    },
+    {
+      "step": 1,
+      "name": "add-minimal-skeleton-renderer",
+      "status": "completed",
+      "started_at": "2026-05-11T21:26:19+0900",
+      "summary": "Added SVG-only MinimalSkeletonCharacterLayer that consumes SkeletonPose and SkeletonBodyModel, renders thin readable body guides with subtle head-facing expressions, and preserves pointerEvents none.",
+      "completed_at": "2026-05-11T21:30:13+0900"
+    },
+    {
+      "step": 2,
+      "name": "switch-main-default-keep-lab-rig",
+      "status": "completed",
+      "started_at": "2026-05-11T21:30:13+0900",
+      "summary": "Switched SkeletonPoseOverlay to default to the minimal skeleton renderer, kept main simulation explicit, and preserved skeleton lab PNG variants with an added minimal renderer option.",
+      "completed_at": "2026-05-11T21:33:11+0900"
+    },
+    {
+      "step": 3,
+      "name": "document-visual-pivot-and-verify",
+      "status": "completed",
+      "started_at": "2026-05-11T21:33:11+0900",
+      "summary": "Documented the visual pivot from monkey-forward character art to a routefinding-first minimal skeleton, clarified PNG rig preservation for lab/legacy/mascot experiments, and verified main simulation uses minimalSkeleton while skeleton lab still exposes PNG variants. npm test, npx tsc --noEmit, and git diff --check passed.",
+      "completed_at": "2026-05-11T21:34:59+0900"
+    }
+  ],
+  "created_at": "2026-05-11T21:21:55+0900",
+  "completed_at": "2026-05-11T21:34:59+0900"
+}

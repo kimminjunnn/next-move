@@ -11,6 +11,18 @@ updated: 2026-05-10
 
 # Rupa Rigged Character Design
 
+## Current Status
+
+As of the stickman pivot, the main simulation defaults to the SVG-only stickman
+character. The thinner minimal skeleton renderer remains available in skeleton
+lab as a comparison option. The PNG monkey rig remains supported in skeleton lab
+and as a legacy, mascot, and visual-experiment asset set. Do not delete the PNG
+rig or rollback directories as part of the pivot.
+
+The product direction now favors routefinding clarity over character presence:
+the default overlay should be readable on a wall photo, visibly character-like,
+and still subordinate to hold, route, and body-position judgment.
+
 ## Task Contract
 
 Add a back-view Rupa monkey character over the existing skeleton pose system.
@@ -50,6 +62,14 @@ Use `assets/rupa_theme/references/theme1.png` as the visual reference:
 The first implementation should prefer a readable, stable rig over perfect fur
 detail. Asset polish can improve the same rig later.
 
+For the default product renderer, prefer the stickman character visual contract:
+
+- Maintain `left`, `back`, and `right` head-facing semantics.
+- Use visible eyes, nose, and a short neutral mouth mark.
+- Keep the expression subtly neutral and likable.
+- Avoid friendly mascot acting, exaggerated emotion, or face detail that pulls
+  attention away from route reading.
+
 ## Interface Contract
 
 The render rig consumes:
@@ -85,6 +105,15 @@ Local-only assets:
 - discarded image-generation variants
 - temporary chroma-key sources
 - debug screenshots
+
+Preservation policy:
+
+- Existing PNG rig directories are retained as lab, legacy, mascot, and
+  experiment resources.
+- Rollback directories document visual attempts and should not be treated as
+  unused generated debris.
+- The current pivot does not authorize deleting PNG rig assets or replacing
+  them with new generated images.
 
 Initial asset list:
 
