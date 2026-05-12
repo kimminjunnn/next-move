@@ -74,6 +74,11 @@ test("keeps non-arm skeleton segments tied to average height ratios", () => {
     height * SHIN_RATIO * BASE_PIXELS_PER_CM * scale,
     "shin length",
   );
+  nearlyEqual(
+    regularReachModel.headToNeck,
+    regularReachModel.headRadius * 2.08,
+    "head-to-neck distance",
+  );
   assert.equal(longReachModel.thigh, regularReachModel.thigh);
   assert.equal(longReachModel.shin, regularReachModel.shin);
   assert.equal(longReachModel.shoulderWidth, regularReachModel.shoulderWidth);

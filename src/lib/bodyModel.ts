@@ -19,6 +19,7 @@ export const DEFAULT_SKELETON_SCALE = 0.45;
 export const MIN_SKELETON_SCALE = 0.2;
 export const MAX_SKELETON_SCALE = 1.25;
 export const SKELETON_SCALE_STEP = 0.05;
+export const HEAD_TO_NECK_RADIUS_RATIO = 2.08;
 
 export function clampSkeletonScale(scale: number) {
   return clampNumber(scale, MIN_SKELETON_SCALE, MAX_SKELETON_SCALE);
@@ -52,6 +53,9 @@ export function createSkeletonBodyModel(
     wingspan: profile.wingspan,
     scale: clampedScale,
     headRadius: cmToViewportPoints(profile.height * 0.035, clampedScale),
+    headToNeck:
+      cmToViewportPoints(profile.height * 0.035, clampedScale) *
+      HEAD_TO_NECK_RADIUS_RATIO,
     neckToTorso: cmToViewportPoints(profile.height * 0.11, clampedScale),
     torsoToPelvis: cmToViewportPoints(profile.height * 0.17, clampedScale),
     shoulderWidth: cmToViewportPoints(

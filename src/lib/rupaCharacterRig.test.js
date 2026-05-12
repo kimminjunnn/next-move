@@ -14,6 +14,7 @@ const {
   computeAnchorPartTransform,
   computeLimbPartTransform,
   computeLimbPartAnchorPoints,
+  getPoseHeadFacing,
   getRupaHeadFacing,
   getRupaTailSwayDegrees,
   getRotationDegrees,
@@ -406,11 +407,16 @@ test("keeps Rupa head upright in the default back pose", () => {
   nearlyEqual(head.rotationDeg, 0, "headBack rotation");
 });
 
-test("chooses a Rupa head facing from active hand intent and reach direction", () => {
-  assert.equal(getRupaHeadFacing(pose, "leftHand"), "left");
-  assert.equal(getRupaHeadFacing(pose, "rightHand"), "right");
+test("chooses pose head facing from active hand and arm intent", () => {
+  assert.equal(getPoseHeadFacing(pose, "leftHand"), "left");
+  assert.equal(getPoseHeadFacing(pose, "leftElbow"), "left");
+  assert.equal(getPoseHeadFacing(pose, "rightHand"), "right");
+  assert.equal(getPoseHeadFacing(pose, "rightElbow"), "right");
+});
+
+test("chooses pose head facing from asymmetric hand reach", () => {
   assert.equal(
-    getRupaHeadFacing({
+    getPoseHeadFacing({
       joints: {
         ...pose.joints,
         leftHand: { x: 4, y: 42 },
@@ -419,7 +425,36 @@ test("chooses a Rupa head facing from active hand intent and reach direction", (
     }),
     "left",
   );
-  assert.equal(getRupaHeadFacing(pose), "back");
+  assert.equal(
+    getPoseHeadFacing({
+      joints: {
+        ...pose.joints,
+        leftHand: { x: 22, y: 112 },
+        rightHand: { x: 104, y: 42 },
+      },
+    }),
+    "right",
+  );
+});
+
+test("keeps pose head facing back when hand reach is balanced", () => {
+  assert.equal(getPoseHeadFacing(pose), "back");
+  assert.equal(
+    getPoseHeadFacing({
+      joints: {
+        ...pose.joints,
+        leftHand: { x: 12, y: 72 },
+        rightHand: { x: 88, y: 72 },
+      },
+    }),
+    "back",
+  );
+});
+
+test("keeps the Rupa head facing export compatible with pose head facing", () => {
+  assert.equal(getRupaHeadFacing(pose, "leftHand"), "left");
+  assert.equal(getRupaHeadFacing(pose, "rightElbow"), "right");
+  assert.equal(getRupaHeadFacing(pose), getPoseHeadFacing(pose));
 });
 
 test("renders only the Rupa head variant for the selected facing", () => {

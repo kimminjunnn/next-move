@@ -37,6 +37,7 @@ export type SkeletonBodyModel = {
   wingspan: number;
   scale: number;
   headRadius: number;
+  headToNeck: number;
   neckToTorso: number;
   torsoToPelvis: number;
   shoulderWidth: number;

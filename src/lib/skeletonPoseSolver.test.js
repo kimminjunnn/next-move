@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
+  createDefaultSkeletonPose,
   resolveSkeletonCoreDrag,
   resolveSkeletonHeadDrag,
   resolveSkeletonJointDrag,
@@ -18,6 +19,33 @@ const {
 function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
+
+test("places the default head at the model head-neck distance", () => {
+  const model = {
+    height: 170,
+    wingspan: 170,
+    scale: 1,
+    headRadius: 10,
+    headToNeck: 22,
+    neckToTorso: 10,
+    torsoToPelvis: 30,
+    shoulderWidth: 40,
+    hipWidth: 30,
+    upperArm: 40,
+    forearm: 35,
+    thigh: 60,
+    shin: 50,
+  };
+
+  const pose = createDefaultSkeletonPose(model, 240, 360);
+
+  assert.ok(
+    Math.abs(distance(pose.joints.head, pose.joints.neck) - model.headToNeck) <
+      0.001,
+  );
+  assert.equal(pose.joints.head.x, pose.joints.neck.x);
+  assert.equal(pose.joints.head.y, pose.joints.neck.y - model.headToNeck);
+});
 
 test("limits every skeleton joint to the requested per-frame movement", () => {
   const currentPose = {
@@ -71,6 +99,7 @@ test("translates the whole skeleton when body dragging in calibration mode", () 
     wingspan: 170,
     scale: 1,
     headRadius: 10,
+    headToNeck: 22,
     neckToTorso: 10,
     torsoToPelvis: 30,
     shoulderWidth: 40,
@@ -122,6 +151,7 @@ test("keeps simulation body drag anchored to prior hand and foot endpoints", () 
     wingspan: 170,
     scale: 1,
     headRadius: 10,
+    headToNeck: 22,
     neckToTorso: 10,
     torsoToPelvis: 30,
     shoulderWidth: 40,
@@ -2345,6 +2375,7 @@ test("rotates the head with the neck and sternum without stretching the spine", 
     wingspan: 170,
     scale: 1,
     headRadius: 10,
+    headToNeck: 22,
     neckToTorso: 10,
     torsoToPelvis: 30,
     shoulderWidth: 40,
@@ -2356,7 +2387,7 @@ test("rotates the head with the neck and sternum without stretching the spine", 
   };
   const pose = {
     joints: {
-      head: { x: 110, y: 28 },
+      head: { x: 110, y: 15 },
       neck: { x: 100, y: 35 },
       torso: { x: 100, y: 55 },
       pelvis: { x: 100, y: 85 },
@@ -2378,14 +2409,14 @@ test("rotates the head with the neck and sternum without stretching the spine", 
   const nextPose = resolveSkeletonHeadDrag(
     pose,
     {
-      target: { x: 125, y: 8 },
+      target: { x: 125, y: 0 },
     },
     model,
   );
 
   assert.ok(
-    nextPose.joints.head.y < pose.joints.head.y,
-    "dragging above the neck should raise the head",
+    nextPose.joints.head.y < nextPose.joints.neck.y,
+    "dragging above the neck should keep the head separated above the neck",
   );
   assert.ok(
     nextPose.joints.neck.x > pose.joints.neck.x,
@@ -2397,7 +2428,7 @@ test("rotates the head with the neck and sternum without stretching the spine", 
   );
   assert.ok(
     distance(nextPose.joints.head, nextPose.joints.neck) -
-      model.headRadius * 1.55 <
+      model.headToNeck <
       0.001,
     "head should keep its natural neck distance",
   );
@@ -2424,6 +2455,7 @@ test("prevents head dragging into an upside-down lower hemisphere", () => {
     wingspan: 170,
     scale: 1,
     headRadius: 10,
+    headToNeck: 22,
     neckToTorso: 10,
     torsoToPelvis: 30,
     shoulderWidth: 40,
@@ -2476,7 +2508,7 @@ test("prevents head dragging into an upside-down lower hemisphere", () => {
   );
   assert.ok(
     distance(nextPose.joints.head, nextPose.joints.neck) -
-      model.headRadius * 1.55 <
+      model.headToNeck <
       0.001,
     "head should keep its natural neck distance while clamped",
   );

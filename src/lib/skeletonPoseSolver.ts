@@ -252,7 +252,7 @@ export function createDefaultSkeletonPose(
 
   return {
     joints: {
-      head: { x: neck.x, y: neck.y - model.headRadius * 1.55 },
+      head: { x: neck.x, y: neck.y - model.headToNeck },
       neck,
       torso,
       pelvis,
@@ -1115,7 +1115,7 @@ export function resolveSkeletonHeadDrag(
   input: SkeletonHeadDragInput,
   model: SkeletonBodyModel,
 ): SkeletonPose {
-  const headToNeckDistance = model.headRadius * 1.55;
+  const headToNeckDistance = model.headToNeck;
   const currentHeadDirection = normalizeOrFallback(
     subtract(pose.joints.head, pose.joints.neck),
     -1,

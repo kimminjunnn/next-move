@@ -462,7 +462,7 @@ function isRigPartVisible(
   return true;
 }
 
-export function getRupaHeadFacing(
+export function getPoseHeadFacing(
   pose: SkeletonPose,
   activeControlId?: string | null,
 ): CharacterRigFacing {
@@ -488,6 +488,13 @@ export function getRupaHeadFacing(
   }
 
   return "back";
+}
+
+export function getRupaHeadFacing(
+  pose: SkeletonPose,
+  activeControlId?: string | null,
+): CharacterRigFacing {
+  return getPoseHeadFacing(pose, activeControlId);
 }
 
 export function getRupaTailSwayDegrees(pose: SkeletonPose) {
