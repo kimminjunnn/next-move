@@ -48,6 +48,7 @@ Rupa는 세 개의 활성 표면을 가진 하나의 제품이다.
 
 - `nest-api/src/main.ts`
 - `nest-api/src/app.module.ts`
+- `nest-api/src/health.controller.ts`
 - `nest-api/src/modules/vision-client/`
 - `nest-api/src/modules/wall-analyses/`
 
@@ -55,6 +56,7 @@ Rupa는 세 개의 활성 표면을 가진 하나의 제품이다.
 
 - 모바일 앱에 내부 파일 경로나 원시 서비스 에러를 그대로 노출하지 않는다.
 - 벽 사진 분석에서는 내부 파일 경로를 FastAPI에 넘기지 않는다. Nest는 앱에서 받은 업로드 파일 bytes를 `file` 필드의 multipart 요청으로 전달한다.
+- 업로드 파일은 허용된 이미지 MIME 타입과 크기 제한을 통과해야 한다.
 - FastAPI 응답 shape를 바꾸면 Expo 타입과 UI 소비 지점을 함께 확인한다.
 - `wall-analyses` API의 response field 이름을 안정적으로 유지한다.
 
@@ -84,6 +86,7 @@ Rupa는 세 개의 활성 표면을 가진 하나의 제품이다.
 - 이미지 로딩, detection, route selection, debug artifact 작성을 분리한다.
 - 로컬 YOLO 모델 실행은 `vision-service` 디렉터리에서 `.venv`를 활성화한 뒤 `RUPA_WALL_MODEL_PATH`로 모델 파일을 명시한다.
 - `POST /internal/analyze-wall`는 Nest API가 전달한 multipart `file`을 읽어 메모리에서 이미지로 decode한다. 이 경로에는 `python-multipart` 의존성이 필요하다.
+- `GET /health`는 서비스 상태, detection provider, 모델 경로 설정 여부, 모델 파일 존재 여부를 반환한다.
 - detection 변경은 JSON 개수만 보지 말고 overlay 이미지를 함께 확인한다.
 - debug output과 private gym photo는 기본적으로 git에 넣지 않는다.
 

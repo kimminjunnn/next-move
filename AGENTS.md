@@ -90,7 +90,9 @@ Nest API:
 
 ```bash
 cd nest-api && npx tsc --noEmit
+cd nest-api && npm run build
 cd nest-api && VISION_SERVICE_URL=http://127.0.0.1:8000 npm run start:dev
+cd nest-api && VISION_SERVICE_URL=http://127.0.0.1:8000 npm run start
 ```
 
 비전 서비스:
@@ -100,6 +102,7 @@ cd vision-service && source .venv/bin/activate && python -m compileall app tools
 cd /Users/mj/Dev/Rupa/vision-service
 source .venv/bin/activate
 RUPA_WALL_DETECTION_PROVIDER=yolo RUPA_WALL_MODEL_PATH=/Users/mj/Dev/rupa-models/hold-seg-v1-colab-plus10/best.pt uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+RUPA_WALL_DETECTION_PROVIDER=yolo RUPA_WALL_MODEL_PATH=/Users/mj/Dev/rupa-models/hold-seg-v1-colab-plus10/best.pt uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 로컬 모델 기반 루트 탐지 API 검증:
@@ -107,6 +110,8 @@ RUPA_WALL_DETECTION_PROVIDER=yolo RUPA_WALL_MODEL_PATH=/Users/mj/Dev/rupa-models
 ```bash
 cd /Users/mj/Dev/Rupa
 curl -sS -w '\nHTTP_STATUS:%{http_code}\n' -F file=@vision-service/regression_inputs/wall_photos_raw/wall_001.jpeg http://127.0.0.1:3000/api/v1/wall-analyses
+curl -sS http://127.0.0.1:3000/health
+curl -sS http://127.0.0.1:8000/health
 ```
 
 루트 탐지 디버그:
@@ -120,6 +125,15 @@ cd vision-service && source .venv/bin/activate && python tools/run_wall_detectio
 ```bash
 python3 scripts/execute.py <phase-name>
 ```
+
+Lightsail/Docker 배포:
+
+```bash
+cp .env.deploy.example .env
+docker compose up -d --build
+```
+
+상세 절차는 `docs/deploy-lightsail.md`를 따른다.
 
 실기기 테스트에서는 `EXPO_PUBLIC_WALL_API_URL`을 `localhost`가 아니라 맥의 LAN IP로 설정한다.
 

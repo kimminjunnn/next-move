@@ -11,6 +11,10 @@ import multer from "multer";
 
 import { CreateWallAnalysisDto } from "./dto/create-wall-analysis.dto";
 import { SelectRouteDto } from "./dto/select-route.dto";
+import {
+  WALL_PHOTO_MAX_BYTES,
+  wallPhotoFileFilter,
+} from "./wall-upload-options";
 import { WallAnalysesService } from "./wall-analyses.service";
 
 @Controller("/api/v1/wall-analyses")
@@ -20,6 +24,10 @@ export class WallAnalysesController {
   @Post()
   @UseInterceptors(
     FileInterceptor("file", {
+      fileFilter: wallPhotoFileFilter,
+      limits: {
+        fileSize: WALL_PHOTO_MAX_BYTES,
+      },
       storage: multer.memoryStorage(),
     }),
   )

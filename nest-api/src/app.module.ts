@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 
+import { HealthController } from "./health.controller";
 import { VisionClientModule } from "./modules/vision-client/vision-client.module";
 import { WallAnalysesModule } from "./modules/wall-analyses/wall-analyses.module";
 
@@ -10,5 +11,6 @@ import { WallAnalysesModule } from "./modules/wall-analyses/wall-analyses.module
     VisionClientModule,
     WallAnalysesModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}

@@ -1,0 +1,10 @@
+.venv
+__pycache__
+**/__pycache__
+.env
+.DS_Store
+debug_outputs*
+regression_inputs
+runs
+*.pt
+*.onnx

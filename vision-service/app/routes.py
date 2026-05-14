@@ -1,3 +1,6 @@
+import os
+from pathlib import Path
+
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.detection_utils import WallDetectionConfigError, WallDetectionInferenceError
@@ -9,8 +12,22 @@ from app.schemas import (
     SelectRouteResponse,
 )
 from app.wall_detection import infer_wall_objects
+from app.wall_detection import DEFAULT_PROVIDER, PROVIDER_ENV
+from app.yolo_provider import MODEL_PATH_ENV
 
 router = APIRouter()
+
+
+@router.get("/health")
+def health():
+    model_path = os.environ.get(MODEL_PATH_ENV)
+    return {
+        "ok": True,
+        "service": "vision-service",
+        "wallDetectionProvider": os.environ.get(PROVIDER_ENV, DEFAULT_PROVIDER),
+        "modelPathConfigured": bool(model_path),
+        "modelPathExists": bool(model_path and Path(model_path).expanduser().exists()),
+    }
 
 
 @router.post("/internal/analyze-wall", response_model=AnalyzeWallResponse)

@@ -1,0 +1,49 @@
+services:
+  nest-api:
+    build:
+      context: ./nest-api
+    environment:
+      NODE_ENV: production
+      VISION_SERVICE_URL: http://vision-service:8000
+    depends_on:
+      vision-service:
+        condition: service_healthy
+    ports:
+      - "${NEST_API_PORT:-3000}:3000"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  vision-service:
+    build:
+      context: ./vision-service
+    environment:
+      RUPA_WALL_DETECTION_PROVIDER: yolo
+      RUPA_WALL_MODEL_PATH: /models/best.pt
+    volumes:
+      - "${RUPA_MODEL_DIR:-/opt/rupa/models}:/models:ro"
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import json,urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)); raise SystemExit(0 if data.get('ok') and data.get('modelPathExists') else 1)",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
