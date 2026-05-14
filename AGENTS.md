@@ -11,7 +11,7 @@ Rupa는 실내 볼더링에서 막혔을 때, 사용자가 벽 사진 위에서 
 - 모바일 앱: Expo React Native, Expo Router, React Native SVG, Zustand
 - 앱 언어: TypeScript strict mode
 - API: NestJS, TypeScript
-- 비전 서비스: FastAPI, Python, OpenCV/Roboflow 기반 이미지 분석
+- 비전 서비스: FastAPI, Python, OpenCV/YOLO 기반 이미지 분석, Roboflow fallback
 - 테스트: Node 기본 테스트 러너, TypeScript/Python 검증
 - 하네스: 코덱스 하네스 (`.codex/commands/`, `phases/`, `scripts/execute.py`)
 
@@ -97,7 +97,9 @@ cd nest-api && npm run start:dev
 
 ```bash
 cd vision-service && source .venv/bin/activate && python -m compileall app tools
-cd vision-service && source .venv/bin/activate && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+cd /Users/mj/Dev/Rupa/vision-service
+source .venv/bin/activate
+RUPA_WALL_MODEL_PATH=/Users/mj/Dev/rupa-models/hold-seg-v1-colab-plus10/best.pt uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 루트 탐지 디버그:

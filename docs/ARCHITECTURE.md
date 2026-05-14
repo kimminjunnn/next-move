@@ -62,7 +62,7 @@ Rupa는 세 개의 활성 표면을 가진 하나의 제품이다.
 역할:
 
 - 벽 사진을 로드한다.
-- OpenCV/Roboflow 기반 이미지 분석을 수행한다.
+- OpenCV/YOLO 기반 이미지 분석을 수행한다. Roboflow provider는 fallback으로 유지한다.
 - 홀드, 볼륨, 윤곽선, 색상, 중심점 등 detected object 정보를 만든다.
 - 선택된 시작 홀드를 기준으로 route selection 결과를 계산한다.
 
@@ -72,13 +72,16 @@ Rupa는 세 개의 활성 표면을 가진 하나의 제품이다.
 - `vision-service/app/routes.py`
 - `vision-service/app/schemas.py`
 - `vision-service/app/image_loader.py`
-- `vision-service/app/roboflow_detection.py`
+- `vision-service/app/wall_detection.py`
+- `vision-service/app/yolo_provider.py`
+- `vision-service/app/roboflow_provider.py`
 - `vision-service/app/route_helper.py`
 - `vision-service/tools/run_wall_detection_debug.py`
 
 아키텍처 규칙:
 
 - 이미지 로딩, detection, route selection, debug artifact 작성을 분리한다.
+- 로컬 YOLO 모델 실행은 `vision-service` 디렉터리에서 `.venv`를 활성화한 뒤 `RUPA_WALL_MODEL_PATH`로 모델 파일을 명시한다.
 - detection 변경은 JSON 개수만 보지 말고 overlay 이미지를 함께 확인한다.
 - debug output과 private gym photo는 기본적으로 git에 넣지 않는다.
 
@@ -124,4 +127,3 @@ Codex Harness는 GitHub의 harness framework 구조를 Rupa에 맞게 이식한 
 - `scripts/codex_harness_execute.py`: 실제 Codex 실행기
 
 하네스는 프로젝트 문서 원문을 산출물에 복사하지 않고, 문서 경로와 짧은 요약만 사용한다.
-
