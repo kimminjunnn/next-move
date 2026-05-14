@@ -11,6 +11,7 @@ import {
 type BodyProfilePatch = Partial<BodyProfile>;
 
 type BodyProfileStore = {
+  hasBodyProfile: boolean;
   profile: BodyProfile;
   updateProfile: (patch: BodyProfilePatch) => void;
 };
@@ -42,9 +43,11 @@ function resolveProfilePatch(
 export const useBodyProfileStore = create<BodyProfileStore>()(
   persist(
     (set) => ({
+      hasBodyProfile: false,
       profile: DEFAULT_BODY_PROFILE,
       updateProfile: (patch) =>
         set((state) => ({
+          hasBodyProfile: true,
           profile: resolveProfilePatch(state.profile, patch),
         })),
     }),

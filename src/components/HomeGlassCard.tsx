@@ -1,7 +1,9 @@
 import { BlurView } from "expo-blur";
-import { StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 
 import { brand } from "../theme/brand";
+
+const rupaLogo = require("../../assets/rupa-logo.png");
 
 export function HomeGlassCard() {
   return (
@@ -12,7 +14,12 @@ export function HomeGlassCard() {
         <View pointerEvents="none" style={styles.innerGlow} />
 
         <View style={styles.content}>
-          <Text style={styles.brand}>{brand.name}</Text>
+          <Image
+            accessibilityIgnoresInvertColors
+            resizeMode="contain"
+            source={rupaLogo}
+            style={styles.logoImage}
+          />
           <Text style={styles.eyebrow}>볼더링 시뮬레이터</Text>
           <Text style={styles.title}>막힌 구간을{"\n"}직접 풀어보세요</Text>
           <Text style={styles.description}>
@@ -29,12 +36,12 @@ export function HomeGlassCard() {
 const styles = StyleSheet.create({
   shell: {
     alignSelf: "stretch",
-    borderRadius: 34,
+    borderRadius: 30,
     overflow: "hidden",
-    backgroundColor: "rgba(243, 229, 191, 0.14)",
+    backgroundColor: "rgba(255, 244, 215, 0.18)",
     shadowColor: brand.colors.text,
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
+    shadowOpacity: 0.1,
+    shadowRadius: 22,
     shadowOffset: {
       width: 0,
       height: 10,
@@ -42,14 +49,14 @@ const styles = StyleSheet.create({
     elevation: 7,
   },
   blurLayer: {
-    minHeight: 500,
-    paddingHorizontal: 32,
-    paddingTop: 44,
-    paddingBottom: 42,
+    minHeight: 430,
+    paddingHorizontal: 30,
+    paddingTop: 34,
+    paddingBottom: 36,
   },
   softFill: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255, 244, 215, 0.42)",
+    backgroundColor: "rgba(255, 244, 215, 0.36)",
   },
   topShine: {
     position: "absolute",
@@ -61,49 +68,46 @@ const styles = StyleSheet.create({
   },
   innerGlow: {
     position: "absolute",
-    inset: 18,
-    borderRadius: 26,
-    backgroundColor: "rgba(224, 180, 40, 0.06)",
+    inset: 16,
+    borderRadius: 24,
+    backgroundColor: "rgba(254, 214, 96, 0.08)",
   },
   content: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 22,
+    gap: 17,
   },
-  brand: {
-    color: brand.colors.text,
-    fontSize: 22,
-    fontWeight: "700",
-    letterSpacing: 7,
-    textAlign: "center",
+  logoImage: {
+    width: 178,
+    height: 74,
   },
   eyebrow: {
     color: brand.colors.mutedText,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
-    letterSpacing: 5,
+    letterSpacing: 3.2,
     textAlign: "center",
   },
   title: {
     color: brand.colors.text,
-    fontSize: 37,
+    fontSize: 32,
     fontWeight: "800",
-    lineHeight: 46,
-    letterSpacing: -1.3,
+    lineHeight: 39,
+    letterSpacing: 0,
     textAlign: "center",
   },
   description: {
     color: brand.colors.mutedText,
-    fontSize: 16,
-    lineHeight: 28,
+    fontSize: 15,
+    lineHeight: 25,
     fontWeight: "500",
     textAlign: "center",
   },
   borderOverlay: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 34,
+    borderRadius: 30,
     borderWidth: 1,
-    borderColor: "rgba(37, 29, 21, 0.16)",
+    borderColor: "rgba(37, 29, 21, 0.14)",
   },
 });

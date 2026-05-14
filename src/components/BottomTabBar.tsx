@@ -33,12 +33,6 @@ export function BottomTabBar({ active }: BottomTabBarProps) {
           >
             시뮬레이션
           </Text>
-          <View
-            style={[
-              styles.activeMarker,
-              active === "simulation" ? styles.activeMarkerVisible : null,
-            ]}
-          />
         </Pressable>
 
         <Pressable
@@ -60,12 +54,6 @@ export function BottomTabBar({ active }: BottomTabBarProps) {
           >
             설정
           </Text>
-          <View
-            style={[
-              styles.activeMarker,
-              active === "settings" ? styles.activeMarkerVisible : null,
-            ]}
-          />
         </Pressable>
       </View>
     </View>
@@ -106,14 +94,5 @@ const styles = StyleSheet.create({
   labelActive: {
     color: brand.colors.text,
     fontWeight: "800",
-  },
-  activeMarker: {
-    width: 22,
-    height: 3,
-    borderRadius: 999,
-    backgroundColor: "transparent",
-  },
-  activeMarkerVisible: {
-    backgroundColor: brand.colors.primary,
   },
 });

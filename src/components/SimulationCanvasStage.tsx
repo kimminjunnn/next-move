@@ -32,7 +32,6 @@ import type {
   SimulationPhotoTransform,
   WallAnalysisResult,
 } from "../types/simulation";
-import { AppHeader } from "./AppHeader";
 import { BottomTabBar } from "./BottomTabBar";
 import { ConfirmModal } from "./ConfirmModal";
 import { brand } from "../theme/brand";
@@ -488,8 +487,6 @@ export function SimulationCanvasStage({
   return (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
       <View style={styles.screen}>
-        <AppHeader showDivider={false} title={brand.name} />
-
         <View onLayout={handleViewportLayout} style={styles.canvasArea}>
           {viewport.width > 0 && viewport.height > 0 ? (
             <SimulationPhotoViewport
@@ -848,7 +845,7 @@ export function SimulationCanvasStage({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: brand.colors.chrome,
+    backgroundColor: brand.colors.wall,
   },
   screen: {
     flex: 1,

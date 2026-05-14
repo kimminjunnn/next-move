@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AppHeader } from "../../src/components/AppHeader";
 import { BottomTabBar } from "../../src/components/BottomTabBar";
 import { ConfirmModal } from "../../src/components/ConfirmModal";
 import { SimulationBackground } from "../../src/components/SimulationBackground";
@@ -21,6 +20,10 @@ import { deriveWingspan, type WingspanMode } from "../../src/types/bodyProfile";
 
 function toDisplayNumber(value: number) {
   return String(value);
+}
+
+function toNumericInput(text: string) {
+  return text.replace(/\D+/g, "");
 }
 
 function parsePositiveNumber(value: string) {
@@ -39,27 +42,27 @@ function parsePositiveNumber(value: string) {
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { profile, updateProfile } = useBodyProfileStore();
+  const { hasBodyProfile, profile, updateProfile } = useBodyProfileStore();
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [heightError, setHeightError] = useState<string | null>(null);
   const [wingspanError, setWingspanError] = useState<string | null>(null);
   const [draftHeight, setDraftHeight] = useState(
-    toDisplayNumber(profile.height),
+    hasBodyProfile ? toDisplayNumber(profile.height) : "0",
   );
   const [draftWingspan, setDraftWingspan] = useState(
-    toDisplayNumber(profile.wingspan),
+    hasBodyProfile ? toDisplayNumber(profile.wingspan) : "0",
   );
   const [draftWingspanMode, setDraftWingspanMode] = useState<WingspanMode>(
     profile.wingspanMode,
   );
 
   useEffect(() => {
-    setDraftHeight(toDisplayNumber(profile.height));
-    setDraftWingspan(toDisplayNumber(profile.wingspan));
+    setDraftHeight(hasBodyProfile ? toDisplayNumber(profile.height) : "0");
+    setDraftWingspan(hasBodyProfile ? toDisplayNumber(profile.wingspan) : "0");
     setDraftWingspanMode(profile.wingspanMode);
     setHeightError(null);
     setWingspanError(null);
-  }, [profile.height, profile.wingspan, profile.wingspanMode]);
+  }, [hasBodyProfile, profile.height, profile.wingspan, profile.wingspanMode]);
 
   function validateDraft() {
     const nextHeight = parsePositiveNumber(draftHeight);
@@ -81,14 +84,15 @@ export default function SettingsScreen() {
   }
 
   function handleHeightChange(text: string) {
-    setDraftHeight(text);
+    const nextText = toNumericInput(text);
+    setDraftHeight(nextText);
     setHeightError(null);
 
     if (draftWingspanMode !== "auto") {
       return;
     }
 
-    const nextHeight = parsePositiveNumber(text);
+    const nextHeight = parsePositiveNumber(nextText);
 
     if (nextHeight === null) {
       return;
@@ -98,7 +102,8 @@ export default function SettingsScreen() {
   }
 
   function handleWingspanChange(text: string) {
-    setDraftWingspan(text);
+    const nextText = toNumericInput(text);
+    setDraftWingspan(nextText);
     setDraftWingspanMode("custom");
     setWingspanError(null);
   }
@@ -152,18 +157,26 @@ export default function SettingsScreen() {
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
       <View style={styles.screen}>
         <SimulationBackground />
-        <AppHeader showDivider={false} title={brand.name} />
 
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           style={styles.scrollView}
         >
-          <View style={styles.introCopy}>
-            <Text style={styles.introTitle}>신체 정보 설정</Text>
-            <Text style={styles.introBody}>
-              손발 위치를 맞출 때 쓰는 기준값이에요.
-            </Text>
+          <View style={styles.introPanel}>
+            <View style={styles.introIcon}>
+              <Ionicons
+                color={brand.colors.primaryText}
+                name="body-outline"
+                size={22}
+              />
+            </View>
+            <View style={styles.introCopy}>
+              <Text style={styles.introTitle}>신체 정보 설정</Text>
+              <Text style={styles.introBody}>
+                손발 위치를 맞출 때 쓰는 기준값이에요.
+              </Text>
+            </View>
           </View>
 
           <View style={styles.fieldCard}>
@@ -298,7 +311,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: brand.colors.chrome,
+    backgroundColor: brand.colors.wall,
   },
   screen: {
     flex: 1,
@@ -313,10 +326,28 @@ const styles = StyleSheet.create({
     paddingBottom: 108,
     gap: 14,
   },
+  introPanel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(37, 29, 21, 0.1)",
+    backgroundColor: "rgba(255, 248, 231, 0.9)",
+  },
+  introIcon: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: brand.colors.primarySoft,
+  },
   introCopy: {
+    flex: 1,
     gap: 6,
-    paddingHorizontal: 4,
-    paddingBottom: 2,
   },
   introTitle: {
     color: brand.colors.text,
@@ -337,8 +368,8 @@ const styles = StyleSheet.create({
     paddingVertical: 22,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: brand.colors.border,
-    backgroundColor: "rgba(255, 244, 215, 0.94)",
+    borderColor: "rgba(37, 29, 21, 0.1)",
+    backgroundColor: "rgba(255, 248, 231, 0.9)",
   },
   fieldHeaderRow: {
     flexDirection: "row",
