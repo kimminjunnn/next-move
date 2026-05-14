@@ -4,8 +4,6 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 
 import { VisionClientService } from "../vision-client/vision-client.service";
 import { CreateWallAnalysisDto } from "./dto/create-wall-analysis.dto";
@@ -29,28 +27,20 @@ export class WallAnalysesService {
       throw new BadRequestException("이미지 파일이 필요합니다.");
     }
 
-    const uploadDir = join(process.cwd(), "uploads");
-    await mkdir(uploadDir, { recursive: true });
+    const result = await this.visionClient.analyzeWall({
+      filename: file.originalname,
+      mimetype: file.mimetype,
+      buffer: file.buffer,
+    });
+    const analysis: WallAnalysisResponse = {
+      id: `an_${randomUUID()}`,
+      image: result.image,
+      objects: result.objects,
+    };
 
-    const extension = file.originalname.split(".").pop() || "jpg";
-    const filename = `${randomUUID()}.${extension}`;
-    const imagePath = join(uploadDir, filename);
-    await writeFile(imagePath, file.buffer);
+    this.analyses.set(analysis.id, analysis);
 
-    try {
-      const result = await this.visionClient.analyzeWall({ imagePath });
-      const analysis: WallAnalysisResponse = {
-        id: `an_${randomUUID()}`,
-        image: result.image,
-        objects: result.objects,
-      };
-
-      this.analyses.set(analysis.id, analysis);
-
-      return { analysis };
-    } finally {
-      await unlink(imagePath).catch(() => undefined);
-    }
+    return { analysis };
   }
 
   async selectRoute(analysisId: string, dto: SelectRouteDto) {

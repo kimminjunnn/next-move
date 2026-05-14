@@ -90,7 +90,7 @@ Nest API:
 
 ```bash
 cd nest-api && npx tsc --noEmit
-cd nest-api && npm run start:dev
+cd nest-api && VISION_SERVICE_URL=http://127.0.0.1:8000 npm run start:dev
 ```
 
 비전 서비스:
@@ -99,7 +99,14 @@ cd nest-api && npm run start:dev
 cd vision-service && source .venv/bin/activate && python -m compileall app tools
 cd /Users/mj/Dev/Rupa/vision-service
 source .venv/bin/activate
-RUPA_WALL_MODEL_PATH=/Users/mj/Dev/rupa-models/hold-seg-v1-colab-plus10/best.pt uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+RUPA_WALL_DETECTION_PROVIDER=yolo RUPA_WALL_MODEL_PATH=/Users/mj/Dev/rupa-models/hold-seg-v1-colab-plus10/best.pt uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+로컬 모델 기반 루트 탐지 API 검증:
+
+```bash
+cd /Users/mj/Dev/Rupa
+curl -sS -w '\nHTTP_STATUS:%{http_code}\n' -F file=@vision-service/regression_inputs/wall_photos_raw/wall_001.jpeg http://127.0.0.1:3000/api/v1/wall-analyses
 ```
 
 루트 탐지 디버그:
@@ -120,6 +127,8 @@ python3 scripts/execute.py <phase-name>
 
 - 사진 크기, 벽 색, 조명, 태그, 피스, 바닥선, 볼륨 그림자가 오탐에 영향을 준다.
 - API 필드 `id`, `kind`, `bbox`, `center`, `contour`, `color.hex`, `parentVolumeObjectId`를 레이어 전체에서 맞춘다.
+- Nest API는 벽 사진을 영구 저장하지 않는다. 앱에서 받은 업로드 파일 bytes를 FastAPI `POST /internal/analyze-wall`에 multipart `file`로 직접 전달한다.
+- FastAPI multipart 업로드 처리에는 `python-multipart`가 필요하다.
 - OpenCV 휴리스틱 변경은 JSON 개수뿐 아니라 덧씌움 이미지도 확인한다.
 - `vision-service/debug_outputs*`, `__pycache__`, 비공개 사진은 기본적으로 커밋하지 않는다.
 

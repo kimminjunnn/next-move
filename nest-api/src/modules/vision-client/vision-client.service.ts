@@ -16,6 +16,12 @@ type VisionAnalyzeResponse = {
   objects: DetectedWallObject[];
 };
 
+type VisionAnalyzeInput = {
+  filename: string;
+  mimetype: string;
+  buffer: Buffer;
+};
+
 type VisionSelectRouteResponse = {
   routeColor: { hex: string };
   includedObjectIds: string[];
@@ -28,14 +34,18 @@ export class VisionClientService {
     timeout: 15000,
   });
 
-  async analyzeWall(input: {
-    imagePath?: string;
-    imageUrl?: string;
-  }): Promise<VisionAnalyzeResponse> {
+  async analyzeWall(input: VisionAnalyzeInput): Promise<VisionAnalyzeResponse> {
+    const formData = new FormData();
+    formData.append(
+      "file",
+      new Blob([new Uint8Array(input.buffer)], { type: input.mimetype }),
+      input.filename,
+    );
+
     try {
       const { data } = await this.client.post<VisionAnalyzeResponse>(
         "/internal/analyze-wall",
-        input,
+        formData,
       );
       return data;
     } catch (error: any) {

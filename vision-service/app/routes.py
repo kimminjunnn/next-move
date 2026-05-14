@@ -1,10 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.detection_utils import WallDetectionConfigError, WallDetectionInferenceError
-from app.image_loader import load_image
+from app.image_loader import load_image_payload
 from app.route_helper import build_route_response
 from app.schemas import (
-    AnalyzeWallRequest,
     AnalyzeWallResponse,
     SelectRouteRequest,
     SelectRouteResponse,
@@ -15,9 +14,10 @@ router = APIRouter()
 
 
 @router.post("/internal/analyze-wall", response_model=AnalyzeWallResponse)
-def analyze_wall(payload: AnalyzeWallRequest):
+async def analyze_wall(file: UploadFile = File(...)):
     try:
-        image = load_image(payload)
+        payload = await file.read()
+        image = load_image_payload(file.filename or "wall.jpg", payload)
         result = infer_wall_objects(image)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))

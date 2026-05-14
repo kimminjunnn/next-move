@@ -37,6 +37,13 @@ def _decode_image_payload(payload: bytes, *, is_heif: bool) -> np.ndarray | None
     )
 
 
+def load_image_payload(filename: str, payload: bytes) -> np.ndarray:
+    image = _decode_image_payload(payload, is_heif=_is_heif_path(filename))
+    if image is None:
+        raise ValueError("image_not_readable:upload")
+    return image
+
+
 def load_image(request: AnalyzeWallRequest) -> np.ndarray:
     if request.imagePath:
         image = cv2.imread(request.imagePath, cv2.IMREAD_COLOR)

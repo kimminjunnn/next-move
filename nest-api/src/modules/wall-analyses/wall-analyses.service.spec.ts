@@ -1,6 +1,6 @@
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { join } from "node:path";
 
 import { BadGatewayException } from "@nestjs/common";
 
@@ -45,13 +45,22 @@ async function withTempCwd(test: (cwd: string) => Promise<void>) {
 }
 
 describe("WallAnalysesService", () => {
-  it("removes the uploaded wall image after successful analysis", async () => {
+  it("passes the uploaded wall image bytes directly to the vision client", async () => {
     await withTempCwd(async (cwd) => {
-      let analyzedImagePath = "";
+      let receivedInput: {
+        imagePath?: string;
+        filename?: string;
+        mimetype?: string;
+        buffer?: Buffer;
+      } = {};
       const visionClient = {
-        async analyzeWall(input: { imagePath?: string }) {
-          analyzedImagePath = input.imagePath ?? "";
-          expect(await readFile(analyzedImagePath, "utf8")).toBe("wall");
+        async analyzeWall(input: {
+          imagePath?: string;
+          filename?: string;
+          mimetype?: string;
+          buffer?: Buffer;
+        }) {
+          receivedInput = input;
           return {
             image: { width: 100, height: 80 },
             objects: [],
@@ -62,17 +71,18 @@ describe("WallAnalysesService", () => {
 
       await service.createWallAnalysis(createUploadFile(), { source: "camera" });
 
-      expect(basename(dirname(analyzedImagePath))).toBe("uploads");
-      expect(await pathExists(analyzedImagePath)).toBe(false);
+      expect(receivedInput.imagePath).toBeUndefined();
+      expect(receivedInput.filename).toBe("wall.jpg");
+      expect(receivedInput.mimetype).toBe("image/jpeg");
+      expect(receivedInput.buffer?.toString("utf8")).toBe("wall");
+      expect(await pathExists(join(cwd, "uploads"))).toBe(false);
     });
   });
 
-  it("removes the uploaded wall image when analysis fails", async () => {
+  it("does not leave an uploads directory when direct vision analysis fails", async () => {
     await withTempCwd(async (cwd) => {
-      let analyzedImagePath = "";
       const visionClient = {
-        async analyzeWall(input: { imagePath?: string }) {
-          analyzedImagePath = input.imagePath ?? "";
+        async analyzeWall() {
           throw new BadGatewayException("Vision service 호출에 실패했습니다.");
         },
       } as Pick<VisionClientService, "analyzeWall"> as VisionClientService;
@@ -82,8 +92,7 @@ describe("WallAnalysesService", () => {
         service.createWallAnalysis(createUploadFile(), { source: "camera" }),
       ).rejects.toBeInstanceOf(BadGatewayException);
 
-      expect(basename(dirname(analyzedImagePath))).toBe("uploads");
-      expect(await pathExists(analyzedImagePath)).toBe(false);
+      expect(await pathExists(join(cwd, "uploads"))).toBe(false);
     });
   });
 });

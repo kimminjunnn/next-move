@@ -40,7 +40,7 @@ Rupa는 세 개의 활성 표면을 가진 하나의 제품이다.
 역할:
 
 - Expo 앱의 wall analysis 요청을 받는다.
-- 업로드된 이미지를 보관하거나 vision service에 전달 가능한 경로로 관리한다.
+- 업로드된 이미지를 보관하지 않고 vision service에 multipart 파일로 전달한다.
 - FastAPI vision service와 통신한다.
 - 내부 에러를 모바일 앱에 안정적인 에러 계약으로 매핑한다.
 
@@ -54,6 +54,7 @@ Rupa는 세 개의 활성 표면을 가진 하나의 제품이다.
 아키텍처 규칙:
 
 - 모바일 앱에 내부 파일 경로나 원시 서비스 에러를 그대로 노출하지 않는다.
+- 벽 사진 분석에서는 내부 파일 경로를 FastAPI에 넘기지 않는다. Nest는 앱에서 받은 업로드 파일 bytes를 `file` 필드의 multipart 요청으로 전달한다.
 - FastAPI 응답 shape를 바꾸면 Expo 타입과 UI 소비 지점을 함께 확인한다.
 - `wall-analyses` API의 response field 이름을 안정적으로 유지한다.
 
@@ -82,6 +83,7 @@ Rupa는 세 개의 활성 표면을 가진 하나의 제품이다.
 
 - 이미지 로딩, detection, route selection, debug artifact 작성을 분리한다.
 - 로컬 YOLO 모델 실행은 `vision-service` 디렉터리에서 `.venv`를 활성화한 뒤 `RUPA_WALL_MODEL_PATH`로 모델 파일을 명시한다.
+- `POST /internal/analyze-wall`는 Nest API가 전달한 multipart `file`을 읽어 메모리에서 이미지로 decode한다. 이 경로에는 `python-multipart` 의존성이 필요하다.
 - detection 변경은 JSON 개수만 보지 말고 overlay 이미지를 함께 확인한다.
 - debug output과 private gym photo는 기본적으로 git에 넣지 않는다.
 
@@ -99,7 +101,9 @@ Expo -> Nest:
 Nest -> FastAPI:
 
 - `POST /internal/analyze-wall`
-  - `imagePath` 또는 `imageUrl`을 받는다.
+  - multipart `file`을 받는다.
+  - Nest가 앱 업로드 파일의 bytes, filename, mimetype을 전달한다.
+  - 분석용 원본 사진은 기본적으로 저장하지 않는다.
 - `POST /internal/select-route`
   - `analysisId`, `startHoldObjectId`, detected objects를 받는다.
 
