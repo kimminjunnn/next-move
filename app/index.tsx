@@ -11,10 +11,9 @@ export default function HomeScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
-      <View style={styles.screen}>
-        <HomeHeroHolds />
-
+    <View style={styles.screen}>
+      <HomeHeroHolds />
+      <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
         <View style={styles.content}>
           <View style={styles.heroArea}>
             <HomeGlassCard />
@@ -31,24 +30,15 @@ export default function HomeScreen() {
               size={30}
             />
           </Pressable>
-
-          <Pressable
-            onPress={() => router.push("/skeleton-lab")}
-            style={styles.labButton}
-          >
-            <Ionicons color={brand.colors.text} name="body-outline" size={18} />
-            <Text style={styles.labText}>스켈레톤 테스트</Text>
-          </Pressable>
         </View>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: brand.colors.wall,
   },
   screen: {
     flex: 1,
@@ -87,25 +77,5 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
     letterSpacing: -0.7,
-  },
-  labButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
-    gap: 8,
-    marginTop: 12,
-    minHeight: 40,
-    paddingHorizontal: 18,
-    borderRadius: 20,
-    backgroundColor: brand.colors.accentSoft,
-    borderWidth: 1,
-    borderColor: brand.colors.border,
-  },
-  labText: {
-    color: brand.colors.text,
-    fontSize: 14,
-    fontWeight: "800",
-    letterSpacing: 0,
   },
 });

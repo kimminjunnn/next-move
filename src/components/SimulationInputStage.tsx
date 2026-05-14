@@ -40,7 +40,7 @@ export function SimulationInputStage({
 
           <Pressable onPress={onOpenLibrary} style={styles.secondaryCard}>
             <View style={styles.secondaryIconBox}>
-              <Ionicons color={brand.colors.surface} name="images-outline" size={34} />
+              <Ionicons color={brand.colors.primaryText} name="images-outline" size={34} />
             </View>
 
             <View style={styles.secondaryCopy}>
@@ -48,7 +48,7 @@ export function SimulationInputStage({
               <Text style={styles.secondaryBody}>기존 사진으로 시뮬레이션</Text>
             </View>
 
-            <Ionicons color={brand.colors.accent} name="chevron-forward" size={30} />
+            <Ionicons color={brand.colors.text} name="chevron-forward" size={30} />
           </Pressable>
         </ScrollView>
 
@@ -128,8 +128,8 @@ const styles = StyleSheet.create({
     minHeight: 132,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: brand.colors.accent,
-    backgroundColor: "rgba(220, 239, 240, 0.94)",
+    borderColor: brand.colors.border,
+    backgroundColor: "rgba(255, 244, 215, 0.94)",
   },
   secondaryIconBox: {
     alignItems: "center",
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     width: 78,
     height: 78,
     borderRadius: 18,
-    backgroundColor: brand.colors.accent,
+    backgroundColor: brand.colors.primarySoft,
   },
   secondaryCopy: {
     flex: 1,

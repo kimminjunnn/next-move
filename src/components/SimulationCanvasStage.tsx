@@ -777,15 +777,24 @@ export function SimulationCanvasStage({
               </>
             ) : null}
 
-            <Pressable onPress={onOpenCamera} style={styles.overlayIconButton}>
+            <Pressable
+              accessibilityLabel="새 벽 사진 촬영"
+              onPress={onOpenCamera}
+              style={styles.overlayIconButton}
+            >
               <Ionicons color="#ffffff" name="camera-outline" size={20} />
             </Pressable>
 
-            <Pressable onPress={onOpenLibrary} style={styles.overlayIconButton}>
+            <Pressable
+              accessibilityLabel="갤러리에서 벽 사진 선택"
+              onPress={onOpenLibrary}
+              style={styles.overlayIconButton}
+            >
               <Ionicons color="#ffffff" name="images-outline" size={20} />
             </Pressable>
 
             <Pressable
+              accessibilityLabel="현재 벽 사진 삭제"
               onPress={() => setConfirmVisible(true)}
               style={styles.overlayIconButton}
             >
@@ -1046,9 +1055,9 @@ const styles = StyleSheet.create({
     textShadowRadius: 10,
   },
   overlayIconButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(15, 15, 15, 0.68)",

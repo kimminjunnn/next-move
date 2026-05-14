@@ -159,15 +159,10 @@ export default function SettingsScreen() {
           showsVerticalScrollIndicator={false}
           style={styles.scrollView}
         >
-          <View style={styles.heroCard}>
-            <View style={styles.heroBadge}>
-              <Ionicons color={brand.colors.primaryText} name="body-outline" size={16} />
-              <Text style={styles.heroBadgeText}>BODY PROFILE</Text>
-            </View>
-
-            <Text style={styles.heroTitle}>신체 정보 설정</Text>
-            <Text style={styles.heroBody}>
-              시뮬레이션에서 동작 범위와 리치를 계산할 때 사용하는 기준이에요.
+          <View style={styles.introCopy}>
+            <Text style={styles.introTitle}>신체 정보 설정</Text>
+            <Text style={styles.introBody}>
+              손발 위치를 맞출 때 쓰는 기준값이에요.
             </Text>
           </View>
 
@@ -181,7 +176,7 @@ export default function SettingsScreen() {
               </View>
 
               <View style={styles.metricIconBox}>
-                <Ionicons color={brand.colors.surface} name="resize-outline" size={22} />
+                <Ionicons color={brand.colors.primaryText} name="resize-outline" size={22} />
               </View>
             </View>
 
@@ -314,56 +309,26 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 28,
+    paddingTop: 18,
     paddingBottom: 108,
-    gap: 18,
+    gap: 14,
   },
-  heroCard: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 28,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: brand.colors.primary,
-    backgroundColor: "rgba(255, 244, 215, 0.96)",
-    shadowColor: brand.colors.primary,
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    elevation: 4,
+  introCopy: {
+    gap: 6,
+    paddingHorizontal: 4,
+    paddingBottom: 2,
   },
-  heroBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: brand.colors.primary,
-  },
-  heroBadgeText: {
-    color: brand.colors.primaryText,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.8,
-  },
-  heroTitle: {
-    marginTop: 22,
+  introTitle: {
     color: brand.colors.text,
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: "800",
-    lineHeight: 38,
-    letterSpacing: -0.9,
+    lineHeight: 30,
+    letterSpacing: -0.6,
   },
-  heroBody: {
-    marginTop: 12,
+  introBody: {
     color: brand.colors.mutedText,
-    fontSize: 16,
-    lineHeight: 25,
+    fontSize: 14,
+    lineHeight: 20,
     fontWeight: "500",
   },
   fieldCard: {
@@ -402,7 +367,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 16,
-    backgroundColor: brand.colors.accent,
+    backgroundColor: brand.colors.primarySoft,
   },
   modeBadge: {
     paddingHorizontal: 14,

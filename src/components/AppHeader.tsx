@@ -1,5 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { brand } from "../theme/brand";
 
@@ -11,21 +10,13 @@ type AppHeaderProps = {
 export function AppHeader({ title, showDivider = true }: AppHeaderProps) {
   return (
     <View style={[styles.header, !showDivider && styles.headerWithoutDivider]}>
-      <Pressable
-        accessibilityLabel="메뉴"
-        onPress={() =>
-          Alert.alert("준비 중", "메뉴는 다음 단계에서 연결됩니다.")
-        }
-        style={styles.iconButton}
-      >
-        <Ionicons color={brand.colors.text} name="menu" size={24} />
-      </Pressable>
+      <View style={styles.sideSpacer} />
 
       <View style={styles.signPlate}>
         <Text style={styles.title}>{title}</Text>
       </View>
 
-      <View style={styles.rightSpacer} />
+      <View style={styles.sideSpacer} />
     </View>
   );
 }
@@ -46,13 +37,6 @@ const styles = StyleSheet.create({
   },
   headerWithoutDivider: {
     borderBottomWidth: 0,
-  },
-  iconButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    width: 40,
-    height: 40,
-    borderRadius: 20,
   },
   signPlate: {
     alignItems: "center",
@@ -84,7 +68,7 @@ const styles = StyleSheet.create({
     lineHeight: 25,
     textTransform: "uppercase",
   },
-  rightSpacer: {
+  sideSpacer: {
     width: 40,
     height: 40,
   },

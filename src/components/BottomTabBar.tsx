@@ -15,6 +15,7 @@ export function BottomTabBar({ active }: BottomTabBarProps) {
     <View style={styles.wrapper}>
       <View style={styles.tabRow}>
         <Pressable
+          accessibilityLabel="시뮬레이션 화면"
           onPress={() => router.replace("/(tabs)/simulation")}
           style={[styles.tab, active === "simulation" && styles.tabActive]}
         >
@@ -32,9 +33,16 @@ export function BottomTabBar({ active }: BottomTabBarProps) {
           >
             시뮬레이션
           </Text>
+          <View
+            style={[
+              styles.activeMarker,
+              active === "simulation" ? styles.activeMarkerVisible : null,
+            ]}
+          />
         </Pressable>
 
         <Pressable
+          accessibilityLabel="설정 화면"
           onPress={() => router.replace("/(tabs)/settings")}
           style={[styles.tab, active === "settings" && styles.tabActive]}
         >
@@ -52,6 +60,12 @@ export function BottomTabBar({ active }: BottomTabBarProps) {
           >
             설정
           </Text>
+          <View
+            style={[
+              styles.activeMarker,
+              active === "settings" ? styles.activeMarkerVisible : null,
+            ]}
+          />
         </Pressable>
       </View>
     </View>
@@ -61,35 +75,45 @@ export function BottomTabBar({ active }: BottomTabBarProps) {
 const styles = StyleSheet.create({
   wrapper: {
     borderTopWidth: 1,
-    borderTopColor: "rgba(37, 29, 21, 0.12)",
+    borderTopColor: "rgba(37, 29, 21, 0.1)",
     backgroundColor: brand.colors.chrome,
   },
   tabRow: {
     flexDirection: "row",
     justifyContent: "center",
-    paddingTop: 10,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-    gap: 48,
+    paddingTop: 8,
+    paddingBottom: 12,
+    paddingHorizontal: 18,
+    gap: 36,
   },
   tab: {
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    minWidth: 120,
-    paddingVertical: 10,
-    borderRadius: 14,
+    gap: 5,
+    minWidth: 104,
+    paddingTop: 8,
+    paddingBottom: 4,
+    borderRadius: 12,
   },
   tabActive: {
-    backgroundColor: brand.colors.wallLight,
+    backgroundColor: "rgba(254, 214, 96, 0.16)",
   },
   label: {
     color: brand.colors.inactive,
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   labelActive: {
     color: brand.colors.text,
-    fontWeight: "700",
+    fontWeight: "800",
+  },
+  activeMarker: {
+    width: 22,
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: "transparent",
+  },
+  activeMarkerVisible: {
+    backgroundColor: brand.colors.primary,
   },
 });
