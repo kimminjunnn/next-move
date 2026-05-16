@@ -5,7 +5,7 @@
     "scheme": "rupa",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/rupa-app-icon/rupa-icon-1024-appstore.png",
+    "icon": "./assets/rupa-icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -26,7 +26,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/rupa-app-icon/rupa-icon-1024-appstore.png",
+        "foregroundImage": "./assets/rupa-icon.png",
         "backgroundColor": "#f7f0e6"
       },
       "edgeToEdgeEnabled": true,
@@ -36,7 +36,7 @@
       ]
     },
     "web": {
-      "favicon": "./assets/rupa-app-icon/rupa-icon-512-preview.png"
+      "favicon": "./assets/rupa-icon.png"
     },
     "plugins": [
       "expo-router",
