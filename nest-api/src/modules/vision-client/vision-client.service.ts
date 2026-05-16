@@ -27,11 +27,20 @@ type VisionSelectRouteResponse = {
   includedObjectIds: string[];
 };
 
+const DEFAULT_VISION_SERVICE_TIMEOUT_MS = 60000;
+
+function visionServiceTimeoutMs(): number {
+  const timeoutMs = Number(process.env.VISION_SERVICE_TIMEOUT_MS);
+  return Number.isFinite(timeoutMs) && timeoutMs > 0
+    ? timeoutMs
+    : DEFAULT_VISION_SERVICE_TIMEOUT_MS;
+}
+
 @Injectable()
 export class VisionClientService {
   private readonly client: AxiosInstance = axios.create({
     baseURL: process.env.VISION_SERVICE_URL ?? "http://localhost:8000",
-    timeout: 15000,
+    timeout: visionServiceTimeoutMs(),
   });
 
   async analyzeWall(input: VisionAnalyzeInput): Promise<VisionAnalyzeResponse> {

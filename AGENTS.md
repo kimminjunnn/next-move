@@ -134,6 +134,7 @@ docker compose up -d --build
 ```
 
 상세 절차는 `docs/deploy-lightsail.md`를 따른다.
+YOLO 분석은 이미지에 따라 15초를 넘을 수 있으므로 배포 기본값은 `VISION_SERVICE_TIMEOUT_MS=60000`을 사용한다.
 
 실기기 테스트에서는 `EXPO_PUBLIC_WALL_API_URL`을 `localhost`가 아니라 맥의 LAN IP로 설정한다.
 

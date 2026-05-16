@@ -5,6 +5,7 @@ services:
     environment:
       NODE_ENV: production
       VISION_SERVICE_URL: http://vision-service:8000
+      VISION_SERVICE_TIMEOUT_MS: ${VISION_SERVICE_TIMEOUT_MS:-60000}
     depends_on:
       vision-service:
         condition: service_healthy

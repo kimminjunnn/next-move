@@ -4,7 +4,31 @@ import { VisionClientService } from "./vision-client.service";
 
 describe("VisionClientService", () => {
   afterEach(() => {
+    delete process.env.VISION_SERVICE_TIMEOUT_MS;
     jest.restoreAllMocks();
+  });
+
+  it("uses a 60 second default timeout for wall analysis", () => {
+    const create = jest.spyOn(axios, "create").mockReturnValue({ post: jest.fn() } as never);
+
+    new VisionClientService();
+
+    expect(create).toHaveBeenCalledWith({
+      baseURL: "http://localhost:8000",
+      timeout: 60000,
+    });
+  });
+
+  it("allows the vision service timeout to be configured", () => {
+    process.env.VISION_SERVICE_TIMEOUT_MS = "45000";
+    const create = jest.spyOn(axios, "create").mockReturnValue({ post: jest.fn() } as never);
+
+    new VisionClientService();
+
+    expect(create).toHaveBeenCalledWith({
+      baseURL: "http://localhost:8000",
+      timeout: 45000,
+    });
   });
 
   it("posts wall images to the vision service as multipart form data", async () => {

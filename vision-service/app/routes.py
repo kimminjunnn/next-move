@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 
@@ -16,6 +17,7 @@ from app.wall_detection import DEFAULT_PROVIDER, PROVIDER_ENV
 from app.yolo_provider import MODEL_PATH_ENV
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/health")
@@ -39,10 +41,13 @@ async def analyze_wall(file: UploadFile = File(...)):
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
     except WallDetectionConfigError as error:
+        logger.exception("wall_detection_config_failed")
         raise HTTPException(status_code=500, detail=str(error))
     except WallDetectionInferenceError as error:
+        logger.exception("wall_detection_inference_failed")
         raise HTTPException(status_code=502, detail=str(error))
     except Exception:
+        logger.exception("analyze_wall_failed")
         raise HTTPException(status_code=500, detail="analyze_wall_failed")
 
     if len(result.objects) == 0:

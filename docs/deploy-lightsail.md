@@ -74,6 +74,20 @@ Check `.env`:
 ```bash
 RUPA_MODEL_DIR=/opt/rupa/models
 NEST_API_PORT=3000
+VISION_SERVICE_TIMEOUT_MS=60000
+```
+
+For 2GB instances, add swap before running YOLO. It gives Linux disk-backed
+overflow memory and reduces service restarts when image analysis temporarily
+uses more RAM.
+
+```bash
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+free -h
 ```
 
 ## 5. Start The Services
@@ -108,6 +122,11 @@ curl -sS -w '\nHTTP_STATUS:%{http_code}\n' \
 ```
 
 Expected: `HTTP_STATUS:201`.
+
+If the app receives `504`, Nest timed out while waiting for YOLO. Check
+`VISION_SERVICE_TIMEOUT_MS` and the `vision-service` logs. If the app receives
+`502`, check `docker compose logs vision-service` for the logged inference
+error.
 
 ## 7. Expo API URL
 
